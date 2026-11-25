@@ -1,0 +1,3 @@
+pytest-homeassistant-custom-component==0.13.316
+# Debe coincidir con la versión de HA que instala el paquete anterior.
+home-assistant-frontend==20260128.6

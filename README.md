@@ -70,7 +70,7 @@ Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolea
 ## Desarrollo
 
 ```bash
-pip install pytest-homeassistant-custom-component
+pip install -r requirements_test.txt
 pytest
 ```
 
