@@ -22,15 +22,23 @@ Panel para Home Assistant que muestra los precios PVPC por horas y enciende tus 
 
 - Home Assistant 2024.7 o superior.
 - [HACS](https://hacs.xyz) para instalarlo como repositorio personalizado.
-- La integración oficial **Spain electricity hourly pricing (PVPC)** (`pvpc_hourly_pricing`) configurada. De ella salen los precios: este panel no consulta a REE por su cuenta.
+- La integración oficial [**Spain electricity hourly pricing (PVPC)**](https://www.home-assistant.io/integrations/pvpc_hourly_pricing/) (`pvpc_hourly_pricing`) configurada. De ella salen los precios: este panel no consulta a REE por su cuenta.
+
+  [![Añadir la integración PVPC a Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=pvpc_hourly_pricing)
 
 ## Instalación
+
+[![Abrir este repositorio en HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=xaimepardal&repository=ha-pvpc-planner&category=integration)
+
+O a mano:
 
 1. En HACS, abre el menú ⋮ → **Repositorios personalizados**.
 2. Añade `https://github.com/xaimepardal/ha-pvpc-planner` con el tipo **Integración**.
 3. Busca **PVPC Planner**, descárgalo y reinicia Home Assistant.
 4. Ve a **Ajustes → Dispositivos y servicios → Añadir integración → PVPC Planner**.
 5. Elige el sensor PVPC. Normalmente viene preseleccionado.
+
+[![Añadir PVPC Planner a Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=pvpc_planner)
 
 Aparecerá **PVPC** en la barra lateral.
 
