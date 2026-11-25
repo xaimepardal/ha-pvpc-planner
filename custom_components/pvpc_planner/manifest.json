@@ -1,0 +1,14 @@
+{
+  "domain": "pvpc_planner",
+  "name": "PVPC Planner",
+  "after_dependencies": ["pvpc_hourly_pricing"],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "panel_custom", "websocket_api"],
+  "documentation": "https://github.com/OWNER/ha-pvpc-planner",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/OWNER/ha-pvpc-planner/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
