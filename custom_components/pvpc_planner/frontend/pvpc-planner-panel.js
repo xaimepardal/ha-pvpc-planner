@@ -49,8 +49,8 @@ const STYLE = `
   font-family: var(--ha-font-family-body, Roboto, sans-serif); }
 .toolbar { display: flex; align-items: center; gap: 8px; height: var(--header-height, 56px); padding: 0 12px;
   background: var(--app-header-background-color); color: var(--app-header-text-color, #fff); font-size: 20px; }
-.content { max-width: 1100px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
-.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 14px; }
+.content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
 .tabs button { padding: 8px 18px; border-radius: 18px; border: 1px solid var(--divider-color); background: var(--card-background-color);
   color: inherit; font: inherit; cursor: pointer; }
@@ -60,18 +60,20 @@ const STYLE = `
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
 .msg:empty { display: none; }
 .msg { padding: 12px; border-radius: 8px; background: var(--card-background-color); margin-bottom: 12px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.cell { --c: var(--divider-color); background: var(--card-background-color); border: 1px solid var(--divider-color);
-  border-left: 5px solid var(--c); border-radius: 12px; padding: 10px 12px; min-height: 64px; cursor: pointer; }
-.cell.cheap { --c: var(--success-color, #43a047); background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
-.cell.expensive { --c: var(--error-color, #db4437); background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.cell { background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 10px;
+  padding: 7px 9px 7px 12px; cursor: pointer; }
+.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 9px;
+  background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
+.cell.cheap { --c: var(--success-color, #43a047); }
+.cell.expensive { --c: var(--error-color, #db4437); }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
-.h { font-weight: 500; }
-.p { font-size: 13px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; padding: 2px 8px;
+.h { font-size: 15px; font-weight: 500; }
+.p { font-size: 12px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 1px 6px;
   border-radius: 10px; background: var(--primary-color); color: var(--text-primary-color, #fff); }
 .dialog { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 16px;
   background: rgba(0, 0, 0, .45); }

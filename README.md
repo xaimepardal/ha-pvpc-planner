@@ -1,23 +1,63 @@
 # PVPC Planner
 
-Panel para Home Assistant que muestra los precios PVPC por horas (hoy y, cuando se publican, mañana) y permite marcar en qué horas encender cada dispositivo.
+Panel para Home Assistant que muestra los precios PVPC por horas y enciende tus dispositivos en las horas que elijas.
 
-- Verde: las 6 horas más baratas del día. Rojo: las 6 más caras.
-- Pulsa una hora y elige los dispositivos (`switch`, `light`, `fan`, `input_boolean`, `humidifier`) que deben estar encendidos.
-- La programación es por fecha y no se repite.
-- Al empezar una hora marcada se encienden. Al empezar una hora en la que ya no están marcados, se apagan. No se tocan dispositivos que el panel no haya encendido.
+<p align="center">
+  <img src="docs/manana.png" width="220" alt="Precios de mañana con dispositivos programados">
+  <img src="docs/dialogo.png" width="220" alt="Elegir qué encender en una hora">
+  <img src="docs/hoy.png" width="220" alt="Hoy: horas pasadas atenuadas y hora actual marcada">
+  <img src="docs/oscuro.png" width="220" alt="Tema oscuro">
+</p>
+
+<sub>Capturas de un entorno simulado en un móvil con datos de ejemplo.</sub>
+
+## Qué hace
+
+- Muestra los precios PVPC de **hoy** y, cuando REE los publica (hacia las 20:30), los de **mañana**.
+- Marca en **verde** las 6 horas más baratas del día y en **rojo** las 6 más caras. Los periodos punta, llano y valle no se tienen en cuenta.
+- Al pulsar una hora eliges qué dispositivos deben estar **encendidos** durante esa hora.
+- La programación es para una fecha concreta y no se repite.
 
 ## Requisitos
 
 - Home Assistant 2024.7 o superior.
-- Integración oficial **Spain electricity hourly pricing (PVPC)** (`pvpc_hourly_pricing`) configurada.
+- [HACS](https://hacs.xyz) para instalarlo como repositorio personalizado.
+- La integración oficial **Spain electricity hourly pricing (PVPC)** (`pvpc_hourly_pricing`) configurada. De ella salen los precios: este panel no consulta a REE por su cuenta.
 
 ## Instalación
 
-1. HACS → Repositorios personalizados → URL de este repo, tipo *Integración*.
-2. Instala **PVPC Planner** y reinicia Home Assistant.
-3. Ajustes → Dispositivos y servicios → Añadir integración → *PVPC Planner* y elige el sensor PVPC.
-4. Aparecerá **PVPC** en la barra lateral.
+1. En HACS, abre el menú ⋮ → **Repositorios personalizados**.
+2. Añade `https://github.com/xaimepardal/ha-pvpc-planner` con el tipo **Integración**.
+3. Busca **PVPC Planner**, descárgalo y reinicia Home Assistant.
+4. Ve a **Ajustes → Dispositivos y servicios → Añadir integración → PVPC Planner**.
+5. Elige el sensor PVPC. Normalmente viene preseleccionado.
+
+Aparecerá **PVPC** en la barra lateral.
+
+<details>
+<summary>Instalación manual</summary>
+
+Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/` de tu Home Assistant, reinicia y sigue desde el paso 4.
+</details>
+
+## Uso
+
+1. Abre **PVPC** en la barra lateral y elige **Hoy** o **Mañana**.
+2. Pulsa la hora en la que quieres encender algo.
+3. Marca los dispositivos y pulsa **Guardar**. Aparecerán como etiquetas en esa hora.
+4. Para quitar dispositivos, vuelve a abrir la hora y desmárcalos, o pulsa **Quitar todos**.
+
+Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar.
+
+### Cuándo se enciende y se apaga
+
+- Al **empezar** una hora marcada, se encienden sus dispositivos.
+- Al empezar una hora en la que un dispositivo **ya no está marcado**, se apaga.
+- Varias horas marcadas seguidas mantienen el dispositivo encendido sin cortes.
+- Si marcas o desmarcas la hora en curso, el cambio se aplica al momento.
+- Los dispositivos que el panel no ha encendido no se tocan. Si enciendes algo a mano, el panel no lo apaga.
+- Si alguien cambia a mano un dispositivo a mitad de una hora programada, no se vuelve a forzar hasta el siguiente cambio de hora.
+- La programación se guarda en Home Assistant, así que funciona con el navegador cerrado y sobrevive a reinicios.
 
 ## Desarrollo
 
@@ -25,3 +65,7 @@ Panel para Home Assistant que muestra los precios PVPC por horas (hoy y, cuando 
 pip install pytest-homeassistant-custom-component
 pytest
 ```
+
+## Licencia
+
+[MIT](LICENSE)
