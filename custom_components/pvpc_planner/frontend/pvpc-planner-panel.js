@@ -2,6 +2,30 @@ const DOMAINS = ["switch", "light", "fan", "input_boolean", "humidifier"];
 const TOP = 6;
 const GROUP = "group:";
 
+const DOMAIN_ICONS = {
+  switch: "mdi:toggle-switch-variant", light: "mdi:lightbulb", fan: "mdi:fan",
+  input_boolean: "mdi:toggle-switch-outline", humidifier: "mdi:air-humidifier",
+};
+const THEMES = { auto: "mdi:theme-light-dark", light: "mdi:white-balance-sunny", dark: "mdi:weather-night" };
+const LANGS = { es: "Español", en: "English", gl: "Galego" };
+
+// Preferencias de este navegador: { theme, lang }.
+const PREFS_KEY = "pvpc_planner_prefs";
+function loadPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function savePrefs(prefs) {
+  try {
+    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+  } catch {
+    // Sin almacenamiento (modo privado): vale para esta sesión.
+  }
+}
+
 const ICONS = [
   "mdi:flash", "mdi:power-socket-eu", "mdi:water-boiler", "mdi:washing-machine", "mdi:tumble-dryer",
   "mdi:dishwasher", "mdi:radiator", "mdi:heat-pump", "mdi:air-conditioner", "mdi:fan", "mdi:air-humidifier",
@@ -36,7 +60,18 @@ const STRINGS = {
     settings_devices: "Devices",
     settings_groups: "Groups",
     settings_close: "Close",
-    hidden_help: "Choose which devices appear when scheduling an hour.",
+    hidden_help: "Choose which devices appear when scheduling an hour, and how they look.",
+    device_edit: "Rename and change icon",
+    device_name: "Name in this panel",
+    device_icon: "Icon",
+    device_default_icon: "Home Assistant icon",
+    device_reset: "Reset",
+    theme_auto: "Theme: Home Assistant",
+    theme_light: "Theme: light",
+    theme_dark: "Theme: dark",
+    language: "Language",
+    language_auto: "HA language",
+    err_invalid_device: "Too many customized devices.",
     hidden_count: "{shown} of {total} visible",
     hidden_show_all: "Show all",
     hidden_hide_all: "Hide all",
@@ -78,7 +113,18 @@ const STRINGS = {
     settings_devices: "Dispositivos",
     settings_groups: "Grupos",
     settings_close: "Cerrar",
-    hidden_help: "Elige qué dispositivos aparecen al programar una hora.",
+    hidden_help: "Elige qué dispositivos aparecen al programar una hora y cómo se ven.",
+    device_edit: "Cambiar nombre e icono",
+    device_name: "Nombre en este panel",
+    device_icon: "Icono",
+    device_default_icon: "Icono de Home Assistant",
+    device_reset: "Restablecer",
+    err_invalid_device: "Demasiados dispositivos personalizados.",
+    theme_auto: "Tema: el de Home Assistant",
+    theme_light: "Tema: claro",
+    theme_dark: "Tema: oscuro",
+    language: "Idioma",
+    language_auto: "Idioma de HA",
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Mostrar todos",
     hidden_hide_all: "Ocultar todos",
@@ -120,7 +166,18 @@ const STRINGS = {
     settings_devices: "Dispositivos",
     settings_groups: "Grupos",
     settings_close: "Pechar",
-    hidden_help: "Escolle que dispositivos aparecen ao programar unha hora.",
+    hidden_help: "Escolle que dispositivos aparecen ao programar unha hora e como se ven.",
+    device_edit: "Cambiar nome e icona",
+    device_name: "Nome neste panel",
+    device_icon: "Icona",
+    device_default_icon: "Icona de Home Assistant",
+    device_reset: "Restablecer",
+    err_invalid_device: "Demasiados dispositivos personalizados.",
+    theme_auto: "Tema: o de Home Assistant",
+    theme_light: "Tema: claro",
+    theme_dark: "Tema: escuro",
+    language: "Idioma",
+    language_auto: "Idioma de HA",
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Amosar todos",
     hidden_hide_all: "Ocultar todos",
@@ -155,20 +212,54 @@ const esc = (s) =>
 const pad = (n) => String(n).padStart(2, "0");
 const nameOf = (hass, id) => hass.states[id]?.attributes.friendly_name || id;
 
+// Nombre e icono con lo personalizado en el panel por delante del de HA.
+const deviceOf = (hass, custom, id) => ({
+  id,
+  name: custom[id]?.name || nameOf(hass, id),
+  icon: custom[id]?.icon || hass.states[id]?.attributes.icon || DOMAIN_ICONS[id.split(".")[0]],
+});
+
 // Dispositivos de encendido/apagado que HA no oculta.
-function devicesOf(hass) {
+function devicesOf(hass, custom) {
   return Object.keys(hass.states)
     .filter((id) => {
       const reg = hass.entities?.[id];
       return DOMAINS.includes(id.split(".")[0]) && !reg?.hidden && !reg?.entity_category;
     })
-    .map((id) => ({ id, name: nameOf(hass, id) }))
+    .map((id) => deviceOf(hass, custom, id))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-const deviceRow = (e, checked, cls = "") => `<label class="${cls}" data-q="${esc(`${e.name} ${e.id}`.toLowerCase())}">
-  <input type="checkbox" class="${cls}" value="${esc(e.id)}" ${checked ? "checked" : ""}>
-  <span>${esc(e.name)}<small>${esc(e.id)}</small></span></label>`;
+const iconTag = (icon) => (icon ? `<ha-icon icon="${esc(icon)}"></ha-icon>` : "");
+
+const deviceRow = (e, checked, cls = "", extra = "") => `<label class="${cls}" data-q="${esc(`${e.name} ${e.id}`.toLowerCase())}">
+  <input type="checkbox" class="${cls}" value="${esc(e.id)}" ${checked ? "checked" : ""}>${extra}
+  <span class="dev">${iconTag(e.icon)}<span>${esc(e.name)}<small>${esc(e.id)}</small></span></span></label>`;
+
+const pickerHtml = (title, withDefault) => `<div class="picker">
+  <button type="button" title="${esc(title)}"><ha-icon></ha-icon><ha-icon icon="mdi:menu-down"></ha-icon></button>
+  <div class="icons" hidden>${(withDefault ? [""] : []).concat(ICONS).map((i) =>
+    `<button type="button" data-icon="${i}" title="${esc(i ? i.slice(4) : withDefault)}"><ha-icon icon="${i || "mdi:restore"}"></ha-icon></button>`).join("")}</div></div>`;
+
+// Desplegable de iconos dentro de `root`; "" = icono de HA (se muestra `fallback`).
+function bindPicker(root, initial, fallback = "mdi:restore") {
+  const grid = root.querySelector(".icons");
+  let icon = initial;
+  const set = (i) => {
+    icon = i;
+    root.querySelector(".picker > button ha-icon").setAttribute("icon", i || fallback);
+    grid.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.icon === i));
+  };
+  set(icon);
+  root.querySelector(".picker > button").onclick = () => (grid.hidden = !grid.hidden);
+  grid.onclick = (e) => {
+    const b = e.target.closest("button[data-icon]");
+    if (!b) return;
+    set(b.dataset.icon);
+    grid.hidden = true;
+  };
+  return () => icon;
+}
 
 function filterOnInput(input, root) {
   input.addEventListener("input", () => {
@@ -216,6 +307,14 @@ function nextDate(iso) {
 }
 
 const STYLE = `
+:host([theme=light]) { color-scheme: light; --primary-background-color: #fafafa; --secondary-background-color: #e5e5e5;
+  --card-background-color: #fff; --primary-text-color: #212121; --secondary-text-color: #727272;
+  --divider-color: rgba(0, 0, 0, .12); --disabled-color: #bdbdbd; --app-header-background-color: var(--primary-color, #03a9f4);
+  --app-header-text-color: #fff; }
+:host([theme=dark]) { color-scheme: dark; --primary-background-color: #111; --secondary-background-color: #282828;
+  --card-background-color: #1c1c1c; --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b;
+  --divider-color: rgba(225, 225, 225, .12); --disabled-color: #6f6f6f; --app-header-background-color: #101e24;
+  --app-header-text-color: #e1e1e1; }
 :host { display: block; min-height: 100vh; background: var(--primary-background-color); color: var(--primary-text-color);
   font-family: var(--ha-font-family-body, Roboto, sans-serif); }
 .toolbar { display: flex; align-items: center; gap: 8px; height: var(--header-height, 56px); padding: 0 12px;
@@ -227,7 +326,13 @@ const STYLE = `
 .settings-btn:hover { background: rgba(255, 255, 255, .28); }
 .settings-btn:hover ha-icon { transform: rotate(60deg); }
 .settings-btn ha-icon { transition: transform .3s; --mdc-icon-size: 20px; }
-.settings-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.settings-btn:focus-visible, .pill:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.pill { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; border-radius: 18px; box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .16); color: inherit; font: inherit;
+  font-size: 14px; cursor: pointer; --mdc-icon-size: 20px; }
+.pill:hover { background: rgba(255, 255, 255, .28); }
+select.pill { appearance: none; padding: 0 12px; }
+select.pill option { color: var(--primary-text-color); background: var(--card-background-color); }
 .content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
@@ -268,7 +373,10 @@ const STYLE = `
 .list label[hidden] { display: none; }
 .list label { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--divider-color); cursor: pointer; }
 .list small { display: block; font-size: 12px; color: var(--secondary-text-color); }
-.list label.group ha-icon { color: var(--primary-color); }
+.list label.group ha-icon, .dev ha-icon { color: var(--primary-color); }
+.dev { display: flex; align-items: center; gap: 10px; min-width: 0; }
+label.switch .dev { flex: 1; }
+label.switch .icon-btn { color: var(--secondary-text-color); }
 .section { margin: 10px 0 2px; font-size: 12px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase;
   color: var(--secondary-text-color); }
 .err { color: var(--error-color); font-size: 14px; }
@@ -319,13 +427,17 @@ class PvpcPlannerPanel extends HTMLElement {
     this._schedule = {};
     this._groups = {};
     this._hidden = [];
+    this._devices = {};
     this._t = translator("en");
+    this._prefs = loadPrefs();
     this._priceEntity = null;
     this._day = null;
     this._last = {};
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><ha-menu-button></ha-menu-button><div class="title">PVPC Planner</div>
+        <select class="pill lang"></select>
+        <button class="pill theme"><ha-icon></ha-icon></button>
         <button class="settings-btn"><ha-icon icon="mdi:tune-variant"></ha-icon><span></span></button></div>
       <div class="content">
         <div class="bar"><div class="tabs"></div><div class="legend"></div></div>
@@ -349,20 +461,50 @@ class PvpcPlannerPanel extends HTMLElement {
     this._$(".grid").addEventListener("click", open);
     this._$(".grid").addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && open(e));
     this._$(".settings-btn").addEventListener("click", () => this._openSettings());
+    this._$(".theme").addEventListener("click", () => {
+      const order = Object.keys(THEMES);
+      this._setPref("theme", order[(order.indexOf(this._prefs.theme || "auto") + 1) % order.length]);
+    });
+    this._$(".lang").addEventListener("change", (e) => this._setPref("lang", e.target.value));
   }
 
   set hass(hass) {
     this._hass = hass;
-    const lang = langOf(hass);
-    if (lang !== this._lang) {
-      this._lang = lang;
-      this._t = translator(lang);
-      this._last = {};
-      this._$(".settings-btn span").textContent = this._t("settings_title");
-    }
+    this._applyPrefs();
     this._$("ha-menu-button").hass = hass;
     this._subscribe();
     this._update();
+  }
+
+  _setPref(key, value) {
+    this._prefs = { ...this._prefs, [key]: value };
+    if (value === "auto") delete this._prefs[key];
+    savePrefs(this._prefs);
+    this._closeDialog?.();
+    this._applyPrefs();
+    this._update(true);
+  }
+
+  // Tema e idioma: los de HA salvo que se elijan otros en este navegador.
+  _applyPrefs() {
+    const lang = this._prefs.lang || langOf(this._hass);
+    const theme = this._prefs.theme || "auto";
+    if (lang === this._lang && theme === this._theme) return;
+    if (theme === "auto") this.removeAttribute("theme");
+    else this.setAttribute("theme", theme);
+    this._theme = theme;
+    this._lang = lang;
+    const t = (this._t = translator(lang));
+    this._last = {};
+    this._$(".settings-btn span").textContent = t("settings_title");
+    const themeBtn = this._$(".theme");
+    themeBtn.title = t(`theme_${theme}`);
+    themeBtn.querySelector("ha-icon").setAttribute("icon", THEMES[theme]);
+    const sel = this._$(".lang");
+    sel.title = t("language");
+    sel.innerHTML = [["auto", t("language_auto")], ...Object.entries(LANGS)]
+      .map(([v, label]) => `<option value="${v}">${esc(label)}</option>`).join("");
+    sel.value = this._prefs.lang || "auto";
   }
 
   set narrow(narrow) {
@@ -388,6 +530,7 @@ class PvpcPlannerPanel extends HTMLElement {
         this._schedule = msg.schedule;
         this._groups = msg.groups;
         this._hidden = msg.hidden;
+        this._devices = msg.devices || {};
         this._priceEntity = msg.price_entity;
         this._update(true);
         this._onData?.();
@@ -470,8 +613,8 @@ class PvpcPlannerPanel extends HTMLElement {
 
   _chip(target) {
     const g = target.startsWith(GROUP) && this._groups[target.slice(GROUP.length)];
-    if (!g) return `<span class="chip">${esc(nameOf(this._hass, target))}</span>`;
-    return `<span class="chip"><ha-icon icon="${esc(g.icon)}"></ha-icon>${esc(g.name)}</span>`;
+    const { name, icon } = g || deviceOf(this._hass, this._devices, target);
+    return `<span class="chip">${iconTag(icon)}${esc(name)}</span>`;
   }
 
   // Abre el diálogo con `html`; devuelve [contenedor, cerrar].
@@ -514,7 +657,7 @@ class PvpcPlannerPanel extends HTMLElement {
     const selected = new Set(this._schedule[date]?.[hour] || []);
     const hidden = new Set(this._hidden);
     // Un oculto ya marcado se muestra para poder quitarlo.
-    const ents = devicesOf(hass).filter((e) => !hidden.has(e.id) || selected.has(e.id));
+    const ents = devicesOf(hass, this._devices).filter((e) => !hidden.has(e.id) || selected.has(e.id));
     const groups = Object.entries(this._groups)
       .map(([id, g]) => ({ id: GROUP + id, ...g }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -580,16 +723,18 @@ class PvpcPlannerPanel extends HTMLElement {
     else this._renderGroups(ui);
   }
 
-  _renderHidden({ dlg, closeFoot }) {
+  _renderHidden(ui) {
+    const { dlg, closeFoot } = ui;
     const t = this._t;
-    const ents = devicesOf(this._hass);
+    const ents = devicesOf(this._hass, this._devices);
     const body = dlg.querySelector(".body");
     closeFoot();
     body.innerHTML = `<p class="help">${t("hidden_help")}</p>
       <input type="search" placeholder="${esc(t("search"))}">
       <div class="tools"><span></span><button class="show">${t("hidden_show_all")}</button>
         <button class="hide">${t("hidden_hide_all")}</button></div>
-      <div class="list">${ents.map((e) => deviceRow(e, false, "switch")).join("")}</div>`;
+      <div class="list">${ents.map((e) => deviceRow(e, false, "switch",
+        `<button type="button" class="icon-btn edit" title="${esc(t("device_edit"))}"><ha-icon icon="mdi:pencil"></ha-icon></button>`)).join("")}</div>`;
     const boxes = [...body.querySelectorAll("input[type=checkbox]")];
     const sync = () => {
       const hidden = new Set(this._hidden);
@@ -612,6 +757,10 @@ class PvpcPlannerPanel extends HTMLElement {
     body.querySelector(".list").onchange = () => save(boxes.filter((b) => !b.checked).map((b) => b.value));
     body.querySelector(".show").onclick = () => setAll(true);
     body.querySelector(".hide").onclick = () => setAll(false);
+    body.querySelector(".list").onclick = (e) => {
+      const b = e.target.closest(".edit");
+      if (b) this._renderDeviceEditor(ui, b.closest("label").querySelector("input").value);
+    };
     this._onData = sync;
     sync();
   }
@@ -626,7 +775,7 @@ class PvpcPlannerPanel extends HTMLElement {
       body.innerHTML = `<p class="help">${t("group_help")}</p>
         <div class="list groups">${groups.map(([id, g]) => `<div class="g" data-id="${esc(id)}">
           <ha-icon icon="${esc(g.icon)}"></ha-icon>
-          <div>${esc(g.name)}<small>${esc(g.entity_ids.map((e) => nameOf(this._hass, e)).join(", "))}</small></div>
+          <div>${esc(g.name)}<small>${esc(g.entity_ids.map((e) => deviceOf(this._hass, this._devices, e).name).join(", "))}</small></div>
           <button class="icon-btn edit" title="${esc(t("group_edit"))}"><ha-icon icon="mdi:pencil"></ha-icon></button>
           <button class="icon-btn del" title="${esc(t("group_delete"))}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
         </div>`).join("") || `<p>${t("group_empty")}</p>`}</div>
@@ -655,33 +804,18 @@ class PvpcPlannerPanel extends HTMLElement {
     const t = this._t;
     const g = (id && this._groups[id]) || { name: "", icon: ICONS[0], entity_ids: [] };
     const selected = new Set(g.entity_ids);
-    let icon = g.icon;
     const body = dlg.querySelector(".body");
     this._onData = null;
     body.onclick = null;
     body.innerHTML = `<div class="row">
         <input type="text" maxlength="40" placeholder="${esc(t("group_name"))}" value="${esc(g.name)}">
-        <div class="picker"><button title="${esc(t("group_icon"))}"><ha-icon></ha-icon><ha-icon icon="mdi:menu-down"></ha-icon></button>
-          <div class="icons" hidden>${ICONS.map((i) => `<button data-icon="${i}" title="${i.slice(4)}"><ha-icon icon="${i}"></ha-icon></button>`).join("")}</div></div>
+        ${pickerHtml(t("group_icon"), "")}
       </div>
       <input type="search" placeholder="${esc(t("search"))}">
-      <div class="list">${devicesOf(this._hass).map((e) => deviceRow(e, selected.has(e.id))).join("")}</div>`;
+      <div class="list">${devicesOf(this._hass, this._devices).map((e) => deviceRow(e, selected.has(e.id))).join("")}</div>`;
     const foot = ui.foot(`<button class="back">${t("cancel")}</button>
       <button class="save">${t("save")}</button>`);
-    const grid = body.querySelector(".icons");
-    const setIcon = (i) => {
-      icon = i;
-      body.querySelector(".picker > button ha-icon").setAttribute("icon", i);
-      grid.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.icon === i));
-    };
-    setIcon(icon);
-    body.querySelector(".picker > button").onclick = () => (grid.hidden = !grid.hidden);
-    grid.onclick = (e) => {
-      const b = e.target.closest("button[data-icon]");
-      if (!b) return;
-      setIcon(b.dataset.icon);
-      grid.hidden = true;
-    };
+    const icon = bindPicker(body, g.icon);
     filterOnInput(body.querySelector("input[type=search]"), body);
     const back = () => this._renderGroups(ui);
     foot.querySelector(".back").onclick = back;
@@ -691,10 +825,41 @@ class PvpcPlannerPanel extends HTMLElement {
       const err = dlg.querySelector(".err");
       if (!name) return (err.textContent = t("group_need_name"));
       if (!entity_ids.length) return (err.textContent = t("group_need_devices"));
-      const msg = { type: "pvpc_planner/group/save", name, icon, entity_ids };
+      const msg = { type: "pvpc_planner/group/save", name, icon: icon(), entity_ids };
       if (id) msg.group_id = id;
       this._call(dlg, msg).then(back, () => {});
     };
+  }
+
+  _renderDeviceEditor(ui, id) {
+    const { dlg } = ui;
+    const t = this._t;
+    const hass = this._hass;
+    const custom = this._devices[id] || {};
+    const haIcon = deviceOf(hass, {}, id).icon;
+    const body = dlg.querySelector(".body");
+    this._onData = null;
+    body.querySelector(".list").onclick = null;
+    body.innerHTML = `<p class="help">${t("device_edit")}: ${esc(nameOf(hass, id))} · ${esc(id)}</p>
+      <div class="row">
+        <input type="text" maxlength="40" placeholder="${esc(nameOf(hass, id))}" value="${esc(custom.name || "")}"
+          aria-label="${esc(t("device_name"))}">
+        ${pickerHtml(t("device_icon"), t("device_default_icon"))}
+      </div>`;
+    const icon = bindPicker(body, custom.icon || "", haIcon);
+    const foot = ui.foot(`<button class="reset">${t("device_reset")}</button>
+      <button class="back">${t("cancel")}</button><button class="save">${t("save")}</button>`);
+    const back = () => this._renderHidden(ui);
+    const send = (name, icn) =>
+      this._call(dlg, { type: "pvpc_planner/device/set", entity_id: id, name, icon: icn }).then(() => {
+        // El evento de la suscripción puede llegar después: se refleja ya.
+        const { [id]: _, ...rest } = this._devices;
+        this._devices = name || icn ? { ...rest, [id]: { ...(name && { name }), ...(icn && { icon: icn }) } } : rest;
+        back();
+      }, () => {});
+    foot.querySelector(".back").onclick = back;
+    foot.querySelector(".reset").onclick = () => send(null, null);
+    foot.querySelector(".save").onclick = () => send(body.querySelector("input[type=text]").value.trim() || null, icon() || null);
   }
 }
 

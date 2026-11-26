@@ -6,7 +6,7 @@ from homeassistant.auth.models import Group
 import pytest
 from pytest_homeassistant_custom_component.common import MockUser
 
-from custom_components.pvpc_planner.const import DOMAIN, MAX_GROUPS
+from custom_components.pvpc_planner.const import DOMAIN, MAX_CUSTOMIZED, MAX_GROUPS
 
 from .common import (
     LAVADORA,
@@ -147,5 +147,45 @@ async def test_not_loaded(hass, hass_ws_client) -> None:
         ("group/save", {"name": "x", "icon": "mdi:flash", "entity_ids": [TERMO]}),
         ("group/delete", {"group_id": "0" * 32}),
         ("hidden/set", {"entity_ids": []}),
+        ("device/set", {"entity_id": TERMO}),
     ):
         assert (await _ws(ws, type_, **data))["error"]["code"] == "not_loaded"
+
+
+async def test_device_customization(hass, hass_ws_client, hass_storage) -> None:
+    entry = await async_setup_integration(hass)
+    ws = await hass_ws_client(hass)
+    planner = hass.data[DOMAIN]
+
+    msg = await _ws(ws, "device/set", entity_id=TERMO, name=" Agua ", icon="mdi:fire")
+    assert msg["success"]
+    assert planner.devices == {TERMO: {"name": "Agua", "icon": "mdi:fire"}}
+    assert (await _ws(ws, "device/set", entity_id=TERMO, name="", icon=None))["success"]
+    assert planner.devices == {}
+    assert (await _ws(ws, "device/set", entity_id=LAVADORA, icon="mdi:fire"))["success"]
+
+    for data in (
+        {"entity_id": "lock.puerta", "name": "x"},
+        {"entity_id": TERMO, "icon": "fire"},
+        {"entity_id": TERMO, "name": "x" * 41},
+    ):
+        msg = await _ws(ws, "device/set", **data)
+        assert msg["error"]["code"] == "invalid_format"
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    assert hass_storage[DOMAIN]["data"]["devices"] == {LAVADORA: {"icon": "mdi:fire"}}
+
+    policy = {"entities": {"entity_ids": {TERMO: {"read": True}}}}
+    user = await _user_ws(hass, hass_ws_client, policy)
+    msg = await _ws(user, "device/set", entity_id=TERMO, name="x")
+    assert msg["error"]["code"] == "unauthorized"
+
+
+async def test_device_customization_limit(hass, hass_ws_client) -> None:
+    await async_setup_integration(hass)
+    ws = await hass_ws_client(hass)
+    planner = hass.data[DOMAIN]
+    planner.devices = {f"switch.s{i}": {"name": "x"} for i in range(MAX_CUSTOMIZED)}
+    msg = await _ws(ws, "device/set", entity_id=TERMO, name="x")
+    assert msg["error"]["code"] == "invalid_device"
+    assert (await _ws(ws, "device/set", entity_id="switch.s0", name="y"))["success"]
