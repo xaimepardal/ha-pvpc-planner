@@ -215,6 +215,8 @@ function nextDate(iso) {
   return d.toISOString().slice(0, 10);
 }
 
+const MAX_CHIPS = 3;
+
 const STYLE = `
 :host { display: block; min-height: 100vh; background: var(--primary-background-color); color: var(--primary-text-color);
   font-family: var(--ha-font-family-body, Roboto, sans-serif); }
@@ -228,7 +230,7 @@ const STYLE = `
 .settings-btn:hover ha-icon { transform: rotate(60deg); }
 .settings-btn ha-icon { transition: transform .3s; --mdc-icon-size: 20px; }
 .settings-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; }
+.content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; container-type: inline-size; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
 .tabs button { padding: 8px 18px; border-radius: 18px; border: 1px solid var(--divider-color); background: var(--card-background-color);
@@ -239,19 +241,23 @@ const STYLE = `
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
 .msg:empty { display: none; }
 .msg { padding: 12px; border-radius: 8px; background: var(--card-background-color); margin-bottom: 12px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-.cell { background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 10px;
-  padding: 7px 9px 7px 12px; cursor: pointer; }
-.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 9px;
+/* Columnas divisoras de 24 para filas completas; celdas cuadradas. */
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+@container (max-width: 760px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 440px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
+.cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;
+  background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
+  padding: 10px 10px 10px 13px; cursor: pointer; }
+.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 10px;
   background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
 .cell.cheap { --c: var(--success-color, #43a047); }
 .cell.expensive { --c: var(--error-color, #db4437); }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
-.h { font-size: 15px; font-weight: 500; }
-.p { font-size: 12px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.h { font-size: 18px; font-weight: 500; }
+.p { font-size: 13px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; margin-top: auto; overflow: hidden; }
 .chip ha-icon { --mdc-icon-size: 12px; vertical-align: -1px; margin-right: 2px; }
 .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 1px 6px;
   border-radius: 10px; background: var(--primary-color); color: var(--text-primary-color, #fff); }
@@ -462,7 +468,10 @@ class PvpcPlannerPanel extends HTMLElement {
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
           <div class="h">${pad(p.hour)}:00${p.dup ? ` ${t("repeated")}` : ""}</div>
           <div class="p">${fmt.format(p.price)}</div>
-          <div class="chips">${ents.map((e) => this._chip(e)).join("")}</div>
+          <div class="chips">${ents
+            .slice(0, ents.length > MAX_CHIPS ? MAX_CHIPS - 1 : MAX_CHIPS)
+            .map((e) => this._chip(e))
+            .join("")}${ents.length > MAX_CHIPS ? `<span class="chip">+${ents.length - MAX_CHIPS + 1}</span>` : ""}</div>
         </div>`;
       })
       .join("");
