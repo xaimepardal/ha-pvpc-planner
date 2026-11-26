@@ -55,6 +55,9 @@ class Planner:
     def as_dict(self) -> dict[str, Any]:
         return {"price_entity": self.price_entity, "schedule": self._schedule}
 
+    def slot(self, day: date, hour: int) -> list[str]:
+        return self._schedule.get(day.isoformat(), {}).get(str(hour), [])
+
     async def async_set_slot(
         self, day: date, hour: int, entity_ids: list[str]
     ) -> None:
@@ -88,9 +91,7 @@ class Planner:
 
     async def async_apply(self, now: datetime | None = None) -> None:
         now = now or dt_util.now()
-        wanted = set(
-            self._schedule.get(now.date().isoformat(), {}).get(str(now.hour), [])
-        )
+        wanted = set(self.slot(now.date(), now.hour))
         to_off = [e for e in self._active - wanted if self.hass.states.get(e)]
         to_on = [
             e

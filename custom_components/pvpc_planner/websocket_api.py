@@ -69,7 +69,9 @@ async def ws_set(
         connection.send_error(msg["id"], "not_loaded", "PVPC Planner no está cargado")
         return
     user = connection.user
-    for entity_id in msg["entity_ids"]:
+    # Añadir o quitar una entidad exige poder controlarla.
+    changed = set(msg["entity_ids"]) ^ set(planner.slot(msg["date"], msg["hour"]))
+    for entity_id in changed:
         if not user.permissions.check_entity(entity_id, POLICY_CONTROL):
             raise Unauthorized(user_id=user.id, entity_id=entity_id)
     try:

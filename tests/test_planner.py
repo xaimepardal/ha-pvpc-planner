@@ -137,6 +137,14 @@ async def test_set_requires_control_permission(
     assert msg["error"]["code"] == "unauthorized"
     assert hass.states.get(TERMO).state == "off"
 
+    # Quitar también exige permiso.
+    planner = hass.data[DOMAIN]
+    day = dt_util.now().date()
+    await planner.async_set_slot(day, 11, [TERMO])
+    msg = await _set(ws, [], hour=11)
+    assert msg["error"]["code"] == "unauthorized"
+    assert planner.slot(day, 11) == [TERMO]
+
 
 async def test_config_flow(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
