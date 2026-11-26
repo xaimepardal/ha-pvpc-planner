@@ -4,12 +4,24 @@
       "user": {
         "title": "PVPC Planner",
         "description": "Choose the price sensor from the PVPC integration.",
-        "data": { "price_entity": "PVPC sensor" }
+        "data": {
+          "price_entity": "PVPC sensor"
+        }
       }
     },
     "abort": {
       "already_configured": "Already configured.",
       "pvpc_missing": "Install and set up the official \"Spain electricity hourly pricing (PVPC)\" integration first."
+    }
+  },
+  "entity": {
+    "image": {
+      "today": {
+        "name": "Today"
+      },
+      "tomorrow": {
+        "name": "Tomorrow"
+      }
     }
   }
 }
