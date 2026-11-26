@@ -48,6 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sidebar_title="PVPC",
         sidebar_icon="mdi:flash",
         module_url=f"{STATIC_URL}/{PANEL_COMPONENT}.js?v={version}",
+        # Un usuario no admin ya puede controlar entidades; ws_set comprueba
+        # el permiso de control de cada una.
         require_admin=False,
     )
     return True

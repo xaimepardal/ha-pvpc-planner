@@ -62,9 +62,14 @@ async def test_entity_permissions_on_add_and_remove(hass, hass_ws_client) -> Non
 
 
 @pytest.mark.freeze_time(NOW)
-async def test_rejects_unsupported_domain(hass, hass_ws_client) -> None:
+async def test_set_rejects_invalid_input(hass, hass_ws_client) -> None:
     await async_setup_integration(hass)
     ws = await hass_ws_client(hass)
-    msg = await async_ws_set(ws, 11, [TERMO, "lock.puerta"])
-    assert msg["error"]["code"] == "invalid_entity"
-    assert hass.data["pvpc_planner"].slot(DAY, 11) == []
+    for ids, day in (
+        ([TERMO, "lock.puerta"], "2026-11-25"),
+        ([f"switch.s{i}" for i in range(51)], "2026-11-25"),
+        ([TERMO], "2026-11-27"),
+    ):
+        assert not (await async_ws_set(ws, 11, ids, day))["success"], (ids, day)
+    assert hass.data["pvpc_planner"].as_dict()["schedule"] == {}
+    assert (await async_ws_set(ws, 11, [TERMO], "2026-11-26"))["success"]

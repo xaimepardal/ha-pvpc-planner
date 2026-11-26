@@ -12,7 +12,14 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 import voluptuous as vol
 
-from .const import DOMAIN, SIGNAL_UPDATED, SUPPORTED_DOMAINS
+from .const import ALLOWED_DOMAINS, DOMAIN, MAX_ENTITIES_PER_SLOT, SIGNAL_UPDATED
+
+
+def _allowed_entity_id(value: Any) -> str:
+    entity_id = cv.entity_id(value)
+    if cv.split_entity_id(entity_id)[0] not in ALLOWED_DOMAINS:
+        raise vol.Invalid(f"Dominio no permitido: {entity_id}")
+    return entity_id
 
 
 @callback
@@ -48,7 +55,9 @@ def ws_subscribe(
         vol.Required("type"): f"{DOMAIN}/set",
         vol.Required("date"): cv.date,
         vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
-        vol.Required("entity_ids"): [cv.entity_id],
+        vol.Required("entity_ids"): vol.All(
+            [_allowed_entity_id], vol.Length(max=MAX_ENTITIES_PER_SLOT)
+        ),
     }
 )
 @websocket_api.async_response
@@ -58,23 +67,14 @@ async def ws_set(
     if (planner := hass.data.get(DOMAIN)) is None:
         connection.send_error(msg["id"], "not_loaded", "PVPC Planner no está cargado")
         return
-
-    entity_ids: list[str] = msg["entity_ids"]
-    if unsupported := [
-        e for e in entity_ids if e.split(".")[0] not in SUPPORTED_DOMAINS
-    ]:
-        connection.send_error(
-            msg["id"], "invalid_entity", f"Entidades no admitidas: {unsupported}"
-        )
-        return
-    # Añadir o quitar una entidad de la hora exige poder controlarla.
-    changed = set(entity_ids) ^ set(planner.slot(msg["date"], msg["hour"]))
+    user = connection.user
+    # Añadir o quitar una entidad exige poder controlarla.
+    changed = set(msg["entity_ids"]) ^ set(planner.slot(msg["date"], msg["hour"]))
     for entity_id in changed:
-        if not connection.user.permissions.check_entity(entity_id, POLICY_CONTROL):
-            raise Unauthorized(entity_id=entity_id, permission=POLICY_CONTROL)
-
+        if not user.permissions.check_entity(entity_id, POLICY_CONTROL):
+            raise Unauthorized(user_id=user.id, entity_id=entity_id)
     try:
-        await planner.async_set_slot(msg["date"], msg["hour"], entity_ids)
+        await planner.async_set_slot(msg["date"], msg["hour"], msg["entity_ids"])
     except ValueError as err:
         connection.send_error(msg["id"], "invalid_slot", str(err))
         return

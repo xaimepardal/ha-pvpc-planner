@@ -68,6 +68,17 @@ async def test_unmark_current_hour_turns_off(hass, hass_ws_client) -> None:
     assert not is_on(hass, TERMO)
 
 
+@pytest.mark.freeze_time(NOW)
+async def test_manually_on_is_not_turned_off(hass, hass_ws_client, freezer) -> None:
+    await async_setup_integration(hass, initial_on=(TERMO,))
+    ws = await hass_ws_client(hass)
+    assert (await async_ws_set(ws, 11, [TERMO]))["success"]
+
+    await async_move_to(hass, freezer, local(2026, 11, 25, 11))
+    await async_move_to(hass, freezer, local(2026, 11, 25, 12))
+    assert is_on(hass, TERMO)
+
+
 async def test_config_flow(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
