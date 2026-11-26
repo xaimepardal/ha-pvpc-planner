@@ -8,6 +8,10 @@ CONF_PRICE_ENTITY = "price_entity"
 # Debe coincidir con DOMAINS en el panel.
 ALLOWED_DOMAINS = frozenset({"switch", "light", "fan", "input_boolean", "humidifier"})
 MAX_ENTITIES_PER_SLOT = 50
+MAX_GROUPS = 50
+MAX_HIDDEN = 1000
+# Prefijo de las referencias a grupos dentro de una hora.
+GROUP_PREFIX = "group:"
 # El PVPC solo publica precios de hoy y mañana.
 MAX_DAYS_AHEAD = 1
 
