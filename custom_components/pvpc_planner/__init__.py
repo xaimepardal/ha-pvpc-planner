@@ -7,6 +7,7 @@ from pathlib import Path
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
@@ -22,6 +23,7 @@ from .websocket_api import async_register_commands
 
 # Las rutas estáticas y comandos websocket no se pueden desregistrar.
 _REGISTERED = f"{DOMAIN}_registered"
+PLATFORMS = [Platform.IMAGE]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -52,10 +54,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # el permiso de control de cada una.
         require_admin=False,
     )
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
     frontend.async_remove_panel(hass, PANEL_URL, warn_if_unknown=False)
     await hass.data.pop(DOMAIN).async_unload()
     return True

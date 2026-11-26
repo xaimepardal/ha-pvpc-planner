@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import re
 
+from custom_components.pvpc_planner.render import TEXTS
+
 COMPONENT = Path(__file__).parents[1] / "custom_components" / "pvpc_planner"
 LANGS = ("en", "es", "gl")
 
@@ -32,3 +34,10 @@ def test_panel_translations() -> None:
     assert keys["en"]
     assert keys["es"] == keys["en"]
     assert keys["gl"] == keys["en"]
+
+
+def test_image_texts() -> None:
+    assert set(TEXTS) == set(LANGS)
+    for lang in LANGS:
+        assert TEXTS[lang].keys() == TEXTS["en"].keys()
+        assert len(TEXTS[lang]["weekdays"].split()) == 7

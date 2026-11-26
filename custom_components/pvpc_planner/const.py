@@ -26,3 +26,15 @@ STORAGE_KEY = DOMAIN
 STORAGE_VERSION = 1
 
 SIGNAL_UPDATED = f"{DOMAIN}_updated"
+
+# Horas más baratas ($) y más caras ($$$) del día. Debe coincidir con TOP en el panel.
+PRICE_LEVEL_HOURS = 6
+# Iconos por dominio. Debe coincidir con DOMAIN_ICONS en el panel.
+DOMAIN_ICONS = {
+    "switch": "mdi:toggle-switch-variant",
+    "light": "mdi:lightbulb",
+    "fan": "mdi:fan",
+    "input_boolean": "mdi:toggle-switch-outline",
+    "humidifier": "mdi:air-humidifier",
+}
+GROUP_ICON = "mdi:devices"

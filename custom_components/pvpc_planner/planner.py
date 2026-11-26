@@ -112,6 +112,10 @@ class Planner:
             "rules": [rule.as_dict() for rule in RULES.values()],
         }
 
+    @property
+    def has_templates(self) -> bool:
+        return bool(self._templates)
+
     def template(self, template_id: str) -> dict[str, Any] | None:
         return self._templates.get(template_id)
 
@@ -210,23 +214,32 @@ class Planner:
     def _refresh_auto(self) -> None:
         """Recalcula _auto con los precios de hoy y mañana que haya publicados."""
         self._auto = {}
-        state = self.hass.states.get(self.price_entity)
-        if state is None or not self._templates:
+        if not self._templates:
             return
-        # Los atributos price_XXh son del día de su última actualización, no de
-        # hoy: justo tras medianoche aún pueden ser los de ayer.
-        base = dt_util.as_local(state.last_updated).date()
-        today = dt_util.now().date()
-        for offset in (0, 1):
-            day = base + timedelta(days=offset)
-            if day < today or not (prices := parse_prices(state.attributes, offset)):
-                continue
+        for day, prices in self.day_prices().items():
             slots: dict[str, set[str]] = {}
             for tpl in self._templates.values():
                 for hour in self._template_hours(tpl, prices):
                     slots.setdefault(str(hour), set()).update(tpl["targets"])
             if slots:
                 self._auto[day.isoformat()] = {h: sorted(t) for h, t in slots.items()}
+
+    @callback
+    def day_prices(self) -> dict[date, list[Price]]:
+        """Precios publicados de hoy en adelante, por día."""
+        state = self.hass.states.get(self.price_entity)
+        if state is None:
+            return {}
+        # Los atributos price_XXh son del día de su última actualización, no de
+        # hoy: justo tras medianoche aún pueden ser los de ayer.
+        base = dt_util.as_local(state.last_updated).date()
+        today = dt_util.now().date()
+        out = {}
+        for offset in (0, 1):
+            day = base + timedelta(days=offset)
+            if day >= today and (prices := parse_prices(state.attributes, offset)):
+                out[day] = prices
+        return out
 
     @staticmethod
     def _template_hours(tpl: dict[str, Any], prices: list[Price]) -> set[int]:
@@ -273,7 +286,10 @@ class Planner:
         if old:
             self._changed()
         # Al cambiar de día, _auto pierde el anterior.
+        before = self._auto
         self._refresh_auto()
+        if self._auto != before:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATED)
         await self.async_apply()
 
     async def async_apply(self, now: datetime | None = None) -> None:
