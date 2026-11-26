@@ -467,7 +467,8 @@ const STYLE = `
 .tabs button.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
 .tabs button:disabled { opacity: .45; cursor: default; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--secondary-text-color); }
-.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.dot { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
+.dot.cheap { border-width: 2px; }
 .msg:empty { display: none; }
 .msg { padding: 12px; border-radius: 8px; background: var(--card-background-color); margin-bottom: 12px; }
 /* Columnas divisoras de 24 para filas completas; celdas cuadradas. */
@@ -477,10 +478,14 @@ const STYLE = `
 .cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: grid; grid-template-rows: 1fr 1fr;
   container-type: inline-size; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
   padding: 7%; cursor: pointer; }
-.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px;
-  background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
-.cell.cheap { --c: var(--success-color, #43a047); }
-.cell.expensive { --c: var(--error-color, #db4437); }
+/* Como la imagen para pantallas: caras rayadas, baratas con borde punteado. */
+.cheap, .expensive { --tint: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); background: var(--tint); }
+.cheap { --c: var(--success-color, #43a047); border: 3px dotted var(--c); }
+.expensive { --c: var(--error-color, #db4437); border: 2px solid var(--c);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 45%, transparent) 0 3px, transparent 3px 9px), var(--tint); }
+/* Fondo liso bajo el texto para leerlo sobre las rayas. */
+.cell.expensive :is(.h, .p, .devs, .badge) { width: fit-content; border-radius: 4px; background: var(--tint);
+  box-shadow: 0 0 0 1.5cqw var(--tint); }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
@@ -741,8 +746,8 @@ class PvpcPlannerPanel extends HTMLElement {
       <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `disabled title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
     const unit = stateObj.attributes.unit_of_measurement || "€/kWh";
     this._$(".legend").innerHTML = `
-      <span title="${t("cheapest", { n: TOP })}"><i class="dot" style="background:var(--success-color,#43a047)"></i>$</span>
-      <span title="${t("priciest", { n: TOP })}"><i class="dot" style="background:var(--error-color,#db4437)"></i>$$$</span>
+      <span title="${t("cheapest", { n: TOP })}"><i class="dot cheap"></i>$</span>
+      <span title="${t("priciest", { n: TOP })}"><i class="dot expensive"></i>$$$</span>
       ${Object.keys(this._templates).length ? `<span><ha-icon icon="mdi:robot" style="--mdc-icon-size:16px"></ha-icon> ${t("tpl_auto")}</span>` : ""}
       <span>${esc(unit)}</span>`;
 
