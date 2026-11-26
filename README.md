@@ -55,6 +55,11 @@ Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/`
 3. Marca los dispositivos y pulsa **Guardar**. Aparecerán como etiquetas en esa hora.
 4. Para quitar dispositivos, vuelve a abrir la hora y desmárcalos, o pulsa **Quitar todos**.
 
+En **Ajustes** (arriba a la derecha) puedes:
+
+- Ocultar los dispositivos que no quieras ver al elegir una hora.
+- Crear **grupos**: un nombre, un icono y varios dispositivos que se encienden y apagan juntos. Aparecen al pulsar una hora como un dispositivo más.
+
 Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar, y cada usuario solo puede programar las entidades que tiene permiso para controlar.
 
 ### Cuándo se enciende y se apaga
