@@ -121,6 +121,18 @@ online_image:
       Authorization: !secret ha_bearer
 ```
 
+### Publicación por MQTT
+
+En **Ajustes → Dispositivos y servicios → PVPC Planner → Configurar** se puede publicar la imagen de hoy y la de mañana en un broker MQTT propio, independiente de la integración MQTT de Home Assistant. Por defecto no se publica nada: hace falta poner el servidor. Al guardar se comprueba la conexión.
+
+- Servidor, puerto (8883) y TLS (activado). La CA es opcional: si la pones, solo se confía en ella.
+- Usuario y contraseña. La contraseña no se vuelve a mostrar; si la dejas vacía, se mantiene la guardada.
+- Topics `reterminal/imagen/1` (hoy) y `reterminal/imagen/2` (mañana). Si un topic está vacío, esa imagen no se publica.
+- Intervalo: cada cuántos minutos se mira si la imagen ha cambiado. Con 60 se publica justo al cambiar la hora.
+- Franja activa opcional (desde/hasta, puede cruzar la medianoche): fuera de ella no se publica.
+
+El formato es el del firmware epaper-home del reTerminal E1001: bitmap de 800x480 a 1 bpp (umbral 128, sin tramado, MSB = píxel izquierdo, 1 = blanco) comprimido con zlib. Se publica con QoS 1 y retenido, así que en el broker queda solo la última imagen de cada topic. Solo se envía cuando cambia, también tras reiniciar Home Assistant. Tras un corte de conexión no se reenvía nada pendiente: solo el estado actual.
+
 ## Desarrollo
 
 ```bash

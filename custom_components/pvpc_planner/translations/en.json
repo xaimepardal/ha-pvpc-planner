@@ -23,5 +23,40 @@
         "name": "Tomorrow"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Publish over MQTT",
+        "description": "Sends today's and tomorrow's images to an MQTT broker for e-paper displays (reTerminal E1001 with epaper-home). They are only published when they change. Leave the server empty to disable.",
+        "data": {
+          "host": "Server",
+          "port": "Port",
+          "tls": "TLS",
+          "ca_cert": "CA certificate (PEM)",
+          "username": "Username",
+          "password": "Password",
+          "topic_today": "Today topic",
+          "topic_tomorrow": "Tomorrow topic",
+          "interval": "Interval",
+          "active_from": "Active from",
+          "active_to": "Active until"
+        },
+        "data_description": {
+          "ca_cert": "Empty: system CAs.",
+          "password": "Empty: keep the stored one.",
+          "topic_today": "Empty: not published.",
+          "topic_tomorrow": "Empty: not published.",
+          "interval": "How often to check whether the image changed.",
+          "active_from": "Nothing is published outside this window. No window: all day."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the broker.",
+      "invalid_auth": "Wrong username or password.",
+      "invalid_ca": "The CA certificate is not valid.",
+      "invalid_topic": "Topics can't contain wildcards (+ or #)."
+    }
   }
 }
