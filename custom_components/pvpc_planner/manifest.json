@@ -9,6 +9,6 @@
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/xaimepardal/ha-pvpc-planner/issues",
-  "requirements": ["paho-mqtt==2.1.0"],
+  "requirements": ["paho-mqtt>=2.1.0"],
   "version": "0.2.0"
 }
