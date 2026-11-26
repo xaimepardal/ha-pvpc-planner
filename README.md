@@ -104,7 +104,10 @@ Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolea
 
 Las entidades `image.pvpc_planner_today` y `image.pvpc_planner_tomorrow` dan la tabla del día como PNG de 800x480 (unos 20 KB), pensada para pantallas e-ink o ESPHome. Las horas caras van rayadas y las baratas con borde punteado, así que se entiende igual pasada a blanco y negro. Se regenera solo cuando cambian los precios, la programación o la hora en curso.
 
-<p align="center"><img src="docs/pantalla.png" width="400" alt="Imagen de 800x480 con la tabla de hoy"></p>
+<p align="center">
+  <img src="docs/pantalla.png" width="400" alt="Imagen de 800x480 con la tabla de hoy">
+  <img src="docs/pantalla-1bit.png" width="400" alt="La misma imagen pasada a 1 bit">
+</p>
 
 Se descarga de `/api/image_proxy/image.pvpc_planner_today` con un token de larga duración en la cabecera `Authorization: Bearer …`. Por ejemplo, con `online_image` de ESPHome:
 
