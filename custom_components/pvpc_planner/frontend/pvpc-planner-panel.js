@@ -7,13 +7,13 @@ const DOMAIN_ICONS = {
   input_boolean: "mdi:toggle-switch-outline", humidifier: "mdi:air-humidifier",
 };
 const THEMES = { auto: "mdi:theme-light-dark", light: "mdi:white-balance-sunny", dark: "mdi:weather-night" };
-const LANGS = { es: "Español", en: "English", gl: "Galego" };
 
-// Preferencias de este navegador: { theme, lang }.
+// Preferencias de este navegador: { theme }. Descarta claves antiguas (lang).
 const PREFS_KEY = "pvpc_planner_prefs";
 function loadPrefs() {
   try {
-    return JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+    const { theme } = JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+    return theme ? { theme } : {};
   } catch {
     return {};
   }
@@ -69,8 +69,6 @@ const STRINGS = {
     theme_auto: "Theme: Home Assistant",
     theme_light: "Theme: light",
     theme_dark: "Theme: dark",
-    language: "Language",
-    language_auto: "HA language",
     err_invalid_device: "Too many customized devices.",
     hidden_count: "{shown} of {total} visible",
     hidden_show_all: "Show all",
@@ -123,8 +121,6 @@ const STRINGS = {
     theme_auto: "Tema: el de Home Assistant",
     theme_light: "Tema: claro",
     theme_dark: "Tema: oscuro",
-    language: "Idioma",
-    language_auto: "Idioma de HA",
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Mostrar todos",
     hidden_hide_all: "Ocultar todos",
@@ -176,8 +172,6 @@ const STRINGS = {
     theme_auto: "Tema: o de Home Assistant",
     theme_light: "Tema: claro",
     theme_dark: "Tema: escuro",
-    language: "Idioma",
-    language_auto: "Idioma de HA",
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Amosar todos",
     hidden_hide_all: "Ocultar todos",
@@ -333,8 +327,6 @@ const STYLE = `
   border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .16); color: inherit; font: inherit;
   font-size: 14px; cursor: pointer; --mdc-icon-size: 20px; }
 .pill:hover { background: rgba(255, 255, 255, .28); }
-select.pill { appearance: none; padding: 0 12px; }
-select.pill option { color: var(--primary-text-color); background: var(--card-background-color); }
 .content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; container-type: inline-size; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
@@ -446,7 +438,6 @@ class PvpcPlannerPanel extends HTMLElement {
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><ha-menu-button></ha-menu-button><div class="title">PVPC Planner</div>
-        <select class="pill lang"></select>
         <button class="pill theme"><ha-icon></ha-icon></button>
         <button class="settings-btn"><ha-icon icon="mdi:tune-variant"></ha-icon><span></span></button></div>
       <div class="content">
@@ -475,7 +466,6 @@ class PvpcPlannerPanel extends HTMLElement {
       const order = Object.keys(THEMES);
       this._setPref("theme", order[(order.indexOf(this._prefs.theme || "auto") + 1) % order.length]);
     });
-    this._$(".lang").addEventListener("change", (e) => this._setPref("lang", e.target.value));
   }
 
   set hass(hass) {
@@ -495,9 +485,9 @@ class PvpcPlannerPanel extends HTMLElement {
     this._update(true);
   }
 
-  // Tema e idioma: los de HA salvo que se elijan otros en este navegador.
+  // Idioma de HA; tema de HA salvo que se elija otro en este navegador.
   _applyPrefs() {
-    const lang = this._prefs.lang || langOf(this._hass);
+    const lang = langOf(this._hass);
     const theme = this._prefs.theme || "auto";
     if (lang === this._lang && theme === this._theme) return;
     if (theme === "auto") this.removeAttribute("theme");
@@ -510,11 +500,6 @@ class PvpcPlannerPanel extends HTMLElement {
     const themeBtn = this._$(".theme");
     themeBtn.title = t(`theme_${theme}`);
     themeBtn.querySelector("ha-icon").setAttribute("icon", THEMES[theme]);
-    const sel = this._$(".lang");
-    sel.title = t("language");
-    sel.innerHTML = [["auto", t("language_auto")], ...Object.entries(LANGS)]
-      .map(([v, label]) => `<option value="${v}">${esc(label)}</option>`).join("");
-    sel.value = this._prefs.lang || "auto";
   }
 
   set narrow(narrow) {
