@@ -18,7 +18,7 @@ from .const import ALLOWED_DOMAINS, DOMAIN, MAX_ENTITIES_PER_SLOT, SIGNAL_UPDATE
 def _allowed_entity_id(value: Any) -> str:
     entity_id = cv.entity_id(value)
     if cv.split_entity_id(entity_id)[0] not in ALLOWED_DOMAINS:
-        raise vol.Invalid(f"Dominio no permitido: {entity_id}")
+        raise vol.Invalid(f"Domain not allowed: {entity_id}")
     return entity_id
 
 
@@ -34,7 +34,7 @@ def ws_subscribe(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     if (planner := hass.data.get(DOMAIN)) is None:
-        connection.send_error(msg["id"], "not_loaded", "PVPC Planner no está cargado")
+        connection.send_error(msg["id"], "not_loaded", "PVPC Planner is not loaded")
         return
 
     @callback
@@ -65,7 +65,7 @@ async def ws_set(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     if (planner := hass.data.get(DOMAIN)) is None:
-        connection.send_error(msg["id"], "not_loaded", "PVPC Planner no está cargado")
+        connection.send_error(msg["id"], "not_loaded", "PVPC Planner is not loaded")
         return
     user = connection.user
     # Añadir o quitar una entidad exige poder controlarla.
