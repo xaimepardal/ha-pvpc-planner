@@ -45,7 +45,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         frontend_url_path=PANEL_URL,
         webcomponent_name=PANEL_COMPONENT,
-        sidebar_title="PVPC",
+        sidebar_title="PVPC Planner",
         sidebar_icon="mdi:flash",
         module_url=f"{STATIC_URL}/{PANEL_COMPONENT}.js?v={version}",
         # Un usuario no admin ya puede controlar entidades; ws_set comprueba
