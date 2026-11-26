@@ -17,6 +17,7 @@ from .const import (
     ALLOWED_DOMAINS,
     DOMAIN,
     GROUP_PREFIX,
+    MAX_CUSTOMIZED,
     MAX_ENTITIES_PER_SLOT,
     MAX_HIDDEN,
     SIGNAL_UPDATED,
@@ -24,6 +25,7 @@ from .const import (
 from .planner import Planner
 
 GROUP_ID = vol.Match(r"^[0-9a-f]{32}$")
+NAME = vol.All(str, vol.Strip, vol.Length(max=40))
 ICON = vol.Match(r"^mdi:[a-z0-9]+(-[a-z0-9]+)*$")
 
 
@@ -48,7 +50,14 @@ def _entity_list(min_len: int, max_len: int) -> vol.All:
 
 @callback
 def async_register_commands(hass: HomeAssistant) -> None:
-    for command in (ws_subscribe, ws_set, ws_group_save, ws_group_delete, ws_hidden):
+    for command in (
+        ws_subscribe,
+        ws_set,
+        ws_group_save,
+        ws_group_delete,
+        ws_hidden,
+        ws_device,
+    ):
         websocket_api.async_register_command(hass, command)
 
 
@@ -191,4 +200,28 @@ def ws_hidden(
         return
     _check_control(connection, set(msg["entity_ids"]) ^ set(planner.hidden))
     planner.set_hidden(msg["entity_ids"])
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/device/set",
+        vol.Required("entity_id"): _allowed_entity_id,
+        # Vacío o ausente: vuelve al de Home Assistant.
+        vol.Optional("name"): vol.Any(None, NAME),
+        vol.Optional("icon"): vol.Any(None, "", ICON),
+    }
+)
+@callback
+def ws_device(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    if (planner := _planner(hass, connection, msg["id"])) is None:
+        return
+    entity_id = msg["entity_id"]
+    _check_control(connection, [entity_id])
+    if entity_id not in planner.devices and len(planner.devices) >= MAX_CUSTOMIZED:
+        connection.send_error(msg["id"], "invalid_device", "Too many devices")
+        return
+    planner.set_device(entity_id, msg.get("name"), msg.get("icon"))
     connection.send_result(msg["id"])

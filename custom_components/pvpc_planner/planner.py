@@ -46,6 +46,8 @@ class Planner:
         self._groups: dict[str, dict[str, Any]] = {}
         # Entidades que el panel no ofrece al elegir dispositivos.
         self.hidden: list[str] = []
+        # Nombre/icono propios del panel: {"switch.termo": {"name": ..., "icon": ...}}
+        self.devices: dict[str, dict[str, str]] = {}
         # Entidades encendidas por el planner en la hora en curso.
         self._active: set[str] = set()
         self._unsubs: list = []
@@ -56,6 +58,7 @@ class Planner:
         self._active = set(data.get("active", []))
         self._groups = data.get("groups", {})
         self.hidden = data.get("hidden", [])
+        self.devices = data.get("devices", {})
         self._unsubs.append(
             async_track_time_change(self.hass, self._async_tick, minute=0, second=0)
         )
@@ -88,6 +91,7 @@ class Planner:
             "schedule": self._schedule,
             "groups": self._groups,
             "hidden": self.hidden,
+            "devices": self.devices,
         }
 
     def slot(self, day: date, hour: int) -> list[str]:
@@ -135,6 +139,14 @@ class Planner:
     @callback
     def set_hidden(self, entity_ids: list[str]) -> None:
         self.hidden = sorted(set(entity_ids))
+        self._changed()
+
+    @callback
+    def set_device(self, entity_id: str, name: str | None, icon: str | None) -> None:
+        if custom := {k: v for k, v in (("name", name), ("icon", icon)) if v}:
+            self.devices[entity_id] = custom
+        else:
+            self.devices.pop(entity_id, None)
         self._changed()
 
     def _put_slot(self, key: str, hour: str, targets: list[str]) -> None:
@@ -201,4 +213,5 @@ class Planner:
             "active": sorted(self._active),
             "groups": self._groups,
             "hidden": self.hidden,
+            "devices": self.devices,
         }

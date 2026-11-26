@@ -58,8 +58,10 @@ Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/`
 
 En **Ajustes** (arriba a la derecha) puedes:
 
-- Ocultar los dispositivos que no quieras ver al elegir una hora.
+- Ocultar los dispositivos que no quieras ver al elegir una hora, o cambiarles el nombre y el icono (solo en este panel).
 - Crear **grupos**: un nombre, un icono y varios dispositivos que se encienden y apagan juntos. Aparecen al pulsar una hora como un dispositivo más.
+
+Junto a **Ajustes** se puede cambiar el tema (claro/oscuro) y el idioma; por defecto se usan los de Home Assistant y la elección se guarda en el navegador.
 
 Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar, y cada usuario solo puede programar las entidades que tiene permiso para controlar.
 
