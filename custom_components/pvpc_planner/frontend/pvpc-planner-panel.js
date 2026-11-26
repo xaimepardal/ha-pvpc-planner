@@ -6,7 +6,7 @@ const DOMAIN_ICONS = {
   switch: "mdi:toggle-switch-variant", light: "mdi:lightbulb", fan: "mdi:fan",
   input_boolean: "mdi:toggle-switch-outline", humidifier: "mdi:air-humidifier",
 };
-const THEMES = { auto: "mdi:theme-light-dark", light: "mdi:white-balance-sunny", dark: "mdi:weather-night" };
+const THEMES = { light: "mdi:white-balance-sunny", dark: "mdi:weather-night" };
 
 // Preferencias de este navegador: { theme }. Descarta claves antiguas (lang).
 const PREFS_KEY = "pvpc_planner_prefs";
@@ -66,7 +66,6 @@ const STRINGS = {
     device_icon: "Icon",
     device_default_icon: "Home Assistant icon",
     device_reset: "Reset",
-    theme_auto: "Theme: Home Assistant",
     theme_light: "Theme: light",
     theme_dark: "Theme: dark",
     err_invalid_device: "Too many customized devices.",
@@ -118,7 +117,6 @@ const STRINGS = {
     device_default_icon: "Icono de Home Assistant",
     device_reset: "Restablecer",
     err_invalid_device: "Demasiados dispositivos personalizados.",
-    theme_auto: "Tema: el de Home Assistant",
     theme_light: "Tema: claro",
     theme_dark: "Tema: oscuro",
     hidden_count: "{shown} de {total} visibles",
@@ -169,7 +167,6 @@ const STRINGS = {
     device_default_icon: "Icona de Home Assistant",
     device_reset: "Restablecer",
     err_invalid_device: "Demasiados dispositivos personalizados.",
-    theme_auto: "Tema: o de Home Assistant",
     theme_light: "Tema: claro",
     theme_dark: "Tema: escuro",
     hidden_count: "{shown} de {total} visibles",
@@ -305,8 +302,8 @@ const MAX_ICONS = 3;
 const STYLE = `
 :host([theme=light]) { color-scheme: light; --primary-background-color: #fafafa; --secondary-background-color: #e5e5e5;
   --card-background-color: #fff; --primary-text-color: #212121; --secondary-text-color: #727272;
-  --divider-color: rgba(0, 0, 0, .12); --disabled-color: #bdbdbd; --app-header-background-color: var(--primary-color, #03a9f4);
-  --app-header-text-color: #fff; }
+  --divider-color: rgba(0, 0, 0, .12); --disabled-color: #bdbdbd; --app-header-background-color: #fff;
+  --app-header-text-color: #212121; }
 :host([theme=dark]) { color-scheme: dark; --primary-background-color: #111; --secondary-background-color: #282828;
   --card-background-color: #1c1c1c; --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b;
   --divider-color: rgba(225, 225, 225, .12); --disabled-color: #6f6f6f; --app-header-background-color: #101e24;
@@ -317,16 +314,17 @@ const STYLE = `
   background: var(--app-header-background-color); color: var(--app-header-text-color, #fff); font-size: 20px; }
 .toolbar .title { flex: 1; }
 .settings-btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px 7px 12px; border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .16); color: inherit; font: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit; font: inherit;
   font-size: 15px; font-weight: 500; cursor: pointer; transition: background .2s, transform .2s; }
-.settings-btn:hover { background: rgba(255, 255, 255, .28); }
+.settings-btn:hover, .pill:hover { background: color-mix(in srgb, currentColor 20%, transparent); }
 .settings-btn:hover ha-icon { transform: rotate(60deg); }
 .settings-btn ha-icon { transition: transform .3s; --mdc-icon-size: 20px; }
 .settings-btn:focus-visible, .pill:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .pill { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; border-radius: 18px; box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .16); color: inherit; font: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit; font: inherit;
   font-size: 14px; cursor: pointer; --mdc-icon-size: 20px; }
-.pill:hover { background: rgba(255, 255, 255, .28); }
 .content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; container-type: inline-size; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
@@ -462,9 +460,10 @@ class PvpcPlannerPanel extends HTMLElement {
     this._$(".grid").addEventListener("click", open);
     this._$(".grid").addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && open(e));
     this._$(".settings-btn").addEventListener("click", () => this._openSettings());
+    // Volver al modo de HA borra la preferencia: así sigue a HA si cambia.
     this._$(".theme").addEventListener("click", () => {
-      const order = Object.keys(THEMES);
-      this._setPref("theme", order[(order.indexOf(this._prefs.theme || "auto") + 1) % order.length]);
+      const next = this._theme === "dark" ? "light" : "dark";
+      this._setPref("theme", next === this._haTheme() ? "auto" : next);
     });
   }
 
@@ -485,14 +484,20 @@ class PvpcPlannerPanel extends HTMLElement {
     this._update(true);
   }
 
-  // Idioma de HA; tema de HA salvo que se elija otro en este navegador.
+  _haTheme() {
+    return this._hass.themes?.darkMode ? "dark" : "light";
+  }
+
+  // Idioma de HA. Tema de HA salvo que se elija el contrario en este navegador; solo entonces se fuerzan colores.
   _applyPrefs() {
     const lang = langOf(this._hass);
-    const theme = this._prefs.theme || "auto";
-    if (lang === this._lang && theme === this._theme) return;
-    if (theme === "auto") this.removeAttribute("theme");
+    const ha = this._haTheme();
+    const theme = this._prefs.theme || ha;
+    if (lang === this._lang && theme === this._theme && ha === this._ha) return;
+    if (theme === ha) this.removeAttribute("theme");
     else this.setAttribute("theme", theme);
     this._theme = theme;
+    this._ha = ha;
     this._lang = lang;
     const t = (this._t = translator(lang));
     this._last = {};

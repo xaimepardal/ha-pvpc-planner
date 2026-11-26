@@ -61,7 +61,7 @@ En **Ajustes** (arriba a la derecha) puedes:
 - Ocultar los dispositivos que no quieras ver al elegir una hora, o cambiarles el nombre y el icono (solo en este panel).
 - Crear **grupos**: un nombre, un icono y varios dispositivos que se encienden y apagan juntos. Aparecen al pulsar una hora como un dispositivo más.
 
-Junto a **Ajustes** se puede cambiar el tema (claro/oscuro); por defecto se usa el de Home Assistant y la elección se guarda en el navegador.
+Junto a **Ajustes** se alterna entre tema claro y oscuro; por defecto se usa el de Home Assistant y la elección se guarda en el navegador.
 
 Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar, y cada usuario solo puede programar las entidades que tiene permiso para controlar.
 
