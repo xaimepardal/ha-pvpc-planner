@@ -6,14 +6,14 @@ const DOMAIN_ICONS = {
   switch: "mdi:toggle-switch-variant", light: "mdi:lightbulb", fan: "mdi:fan",
   input_boolean: "mdi:toggle-switch-outline", humidifier: "mdi:air-humidifier",
 };
-const THEMES = { auto: "mdi:theme-light-dark", light: "mdi:white-balance-sunny", dark: "mdi:weather-night" };
-const LANGS = { es: "Español", en: "English", gl: "Galego" };
+const THEMES = { light: "mdi:white-balance-sunny", dark: "mdi:weather-night" };
 
-// Preferencias de este navegador: { theme, lang }.
+// Preferencias de este navegador: { theme }. Descarta claves antiguas (lang).
 const PREFS_KEY = "pvpc_planner_prefs";
 function loadPrefs() {
   try {
-    return JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+    const { theme } = JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+    return theme ? { theme } : {};
   } catch {
     return {};
   }
@@ -66,11 +66,8 @@ const STRINGS = {
     device_icon: "Icon",
     device_default_icon: "Home Assistant icon",
     device_reset: "Reset",
-    theme_auto: "Theme: Home Assistant",
     theme_light: "Theme: light",
     theme_dark: "Theme: dark",
-    language: "Language",
-    language_auto: "HA language",
     err_invalid_device: "Too many customized devices.",
     hidden_count: "{shown} of {total} visible",
     hidden_show_all: "Show all",
@@ -120,11 +117,8 @@ const STRINGS = {
     device_default_icon: "Icono de Home Assistant",
     device_reset: "Restablecer",
     err_invalid_device: "Demasiados dispositivos personalizados.",
-    theme_auto: "Tema: el de Home Assistant",
     theme_light: "Tema: claro",
     theme_dark: "Tema: oscuro",
-    language: "Idioma",
-    language_auto: "Idioma de HA",
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Mostrar todos",
     hidden_hide_all: "Ocultar todos",
@@ -173,11 +167,8 @@ const STRINGS = {
     device_default_icon: "Icona de Home Assistant",
     device_reset: "Restablecer",
     err_invalid_device: "Demasiados dispositivos personalizados.",
-    theme_auto: "Tema: o de Home Assistant",
     theme_light: "Tema: claro",
     theme_dark: "Tema: escuro",
-    language: "Idioma",
-    language_auto: "Idioma de HA",
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Amosar todos",
     hidden_hide_all: "Ocultar todos",
@@ -306,13 +297,13 @@ function nextDate(iso) {
   return d.toISOString().slice(0, 10);
 }
 
-const MAX_CHIPS = 3;
+const MAX_ICONS = 3;
 
 const STYLE = `
 :host([theme=light]) { color-scheme: light; --primary-background-color: #fafafa; --secondary-background-color: #e5e5e5;
   --card-background-color: #fff; --primary-text-color: #212121; --secondary-text-color: #727272;
-  --divider-color: rgba(0, 0, 0, .12); --disabled-color: #bdbdbd; --app-header-background-color: var(--primary-color, #03a9f4);
-  --app-header-text-color: #fff; }
+  --divider-color: rgba(0, 0, 0, .12); --disabled-color: #bdbdbd; --app-header-background-color: #fff;
+  --app-header-text-color: #212121; }
 :host([theme=dark]) { color-scheme: dark; --primary-background-color: #111; --secondary-background-color: #282828;
   --card-background-color: #1c1c1c; --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b;
   --divider-color: rgba(225, 225, 225, .12); --disabled-color: #6f6f6f; --app-header-background-color: #101e24;
@@ -323,18 +314,17 @@ const STYLE = `
   background: var(--app-header-background-color); color: var(--app-header-text-color, #fff); font-size: 20px; }
 .toolbar .title { flex: 1; }
 .settings-btn { display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px 7px 12px; border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .16); color: inherit; font: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit; font: inherit;
   font-size: 15px; font-weight: 500; cursor: pointer; transition: background .2s, transform .2s; }
-.settings-btn:hover { background: rgba(255, 255, 255, .28); }
+.settings-btn:hover, .pill:hover { background: color-mix(in srgb, currentColor 20%, transparent); }
 .settings-btn:hover ha-icon { transform: rotate(60deg); }
 .settings-btn ha-icon { transition: transform .3s; --mdc-icon-size: 20px; }
 .settings-btn:focus-visible, .pill:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .pill { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; border-radius: 18px; box-sizing: border-box;
-  border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .16); color: inherit; font: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit; font: inherit;
   font-size: 14px; cursor: pointer; --mdc-icon-size: 20px; }
-.pill:hover { background: rgba(255, 255, 255, .28); }
-select.pill { appearance: none; padding: 0 12px; }
-select.pill option { color: var(--primary-text-color); background: var(--card-background-color); }
 .content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; container-type: inline-size; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
@@ -350,22 +340,26 @@ select.pill option { color: var(--primary-text-color); background: var(--card-ba
 .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 @container (max-width: 760px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @container (max-width: 440px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
-.cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;
-  background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
-  padding: 10px 10px 10px 13px; cursor: pointer; }
-.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 10px;
+.cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: grid; grid-template-rows: 1fr 1fr;
+  container-type: inline-size; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
+  padding: 7%; cursor: pointer; }
+.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px;
   background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
 .cell.cheap { --c: var(--success-color, #43a047); }
 .cell.expensive { --c: var(--error-color, #db4437); }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
-.h { font-size: 18px; font-weight: 500; }
-.p { font-size: 13px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; margin-top: auto; overflow: hidden; }
-.chip ha-icon { --mdc-icon-size: 12px; vertical-align: -1px; margin-right: 2px; }
-.chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 1px 6px;
-  border-radius: 10px; background: var(--primary-color); color: var(--text-primary-color, #fff); }
+/* Medidas en cqw: escalan con la celda. Mitad superior hora y precio; inferior, dispositivos. */
+.h, .p { font-size: 19cqw; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.p { font-size: 25cqw; font-weight: 800; letter-spacing: -.02em; }
+.h small { font-size: .6em; font-weight: 500; }
+.devs { display: flex; align-items: center; align-self: end; gap: 4cqw; min-width: 0; color: var(--primary-color);
+  --mdc-icon-size: 25cqw; }
+.devs ha-icon { flex: none; }
+.devs .name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+  font-size: 11cqw; font-weight: 500; line-height: 1.1; color: var(--primary-text-color); }
+.devs .more { font-size: 14cqw; font-weight: 700; }
 .dialog { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 16px;
   background: rgba(0, 0, 0, .45); }
 .dialog[hidden] { display: none; }
@@ -442,7 +436,6 @@ class PvpcPlannerPanel extends HTMLElement {
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><ha-menu-button></ha-menu-button><div class="title">PVPC Planner</div>
-        <select class="pill lang"></select>
         <button class="pill theme"><ha-icon></ha-icon></button>
         <button class="settings-btn"><ha-icon icon="mdi:tune-variant"></ha-icon><span></span></button></div>
       <div class="content">
@@ -467,11 +460,11 @@ class PvpcPlannerPanel extends HTMLElement {
     this._$(".grid").addEventListener("click", open);
     this._$(".grid").addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && open(e));
     this._$(".settings-btn").addEventListener("click", () => this._openSettings());
+    // Volver al modo de HA borra la preferencia: así sigue a HA si cambia.
     this._$(".theme").addEventListener("click", () => {
-      const order = Object.keys(THEMES);
-      this._setPref("theme", order[(order.indexOf(this._prefs.theme || "auto") + 1) % order.length]);
+      const next = this._theme === "dark" ? "light" : "dark";
+      this._setPref("theme", next === this._haTheme() ? "auto" : next);
     });
-    this._$(".lang").addEventListener("change", (e) => this._setPref("lang", e.target.value));
   }
 
   set hass(hass) {
@@ -491,14 +484,20 @@ class PvpcPlannerPanel extends HTMLElement {
     this._update(true);
   }
 
-  // Tema e idioma: los de HA salvo que se elijan otros en este navegador.
+  _haTheme() {
+    return this._hass.themes?.darkMode ? "dark" : "light";
+  }
+
+  // Idioma de HA. Tema de HA salvo que se elija el contrario en este navegador; solo entonces se fuerzan colores.
   _applyPrefs() {
-    const lang = this._prefs.lang || langOf(this._hass);
-    const theme = this._prefs.theme || "auto";
-    if (lang === this._lang && theme === this._theme) return;
-    if (theme === "auto") this.removeAttribute("theme");
+    const lang = langOf(this._hass);
+    const ha = this._haTheme();
+    const theme = this._prefs.theme || ha;
+    if (lang === this._lang && theme === this._theme && ha === this._ha) return;
+    if (theme === ha) this.removeAttribute("theme");
     else this.setAttribute("theme", theme);
     this._theme = theme;
+    this._ha = ha;
     this._lang = lang;
     const t = (this._t = translator(lang));
     this._last = {};
@@ -506,11 +505,6 @@ class PvpcPlannerPanel extends HTMLElement {
     const themeBtn = this._$(".theme");
     themeBtn.title = t(`theme_${theme}`);
     themeBtn.querySelector("ha-icon").setAttribute("icon", THEMES[theme]);
-    const sel = this._$(".lang");
-    sel.title = t("language");
-    sel.innerHTML = [["auto", t("language_auto")], ...Object.entries(LANGS)]
-      .map(([v, label]) => `<option value="${v}">${esc(label)}</option>`).join("");
-    sel.value = this._prefs.lang || "auto";
   }
 
   set narrow(narrow) {
@@ -589,8 +583,8 @@ class PvpcPlannerPanel extends HTMLElement {
       <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `disabled title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
     const unit = stateObj.attributes.unit_of_measurement || "€/kWh";
     this._$(".legend").innerHTML = `
-      <span><i class="dot" style="background:var(--success-color,#43a047)"></i>${t("cheapest", { n: TOP })}</span>
-      <span><i class="dot" style="background:var(--error-color,#db4437)"></i>${t("priciest", { n: TOP })}</span>
+      <span title="${t("cheapest", { n: TOP })}"><i class="dot" style="background:var(--success-color,#43a047)"></i>$</span>
+      <span title="${t("priciest", { n: TOP })}"><i class="dot" style="background:var(--error-color,#db4437)"></i>$$$</span>
       <span>${esc(unit)}</span>`;
 
     if (!prices.length) return fail(t("no_prices"));
@@ -609,25 +603,32 @@ class PvpcPlannerPanel extends HTMLElement {
         const ents = slots[p.hour] || [];
         return `<div class="cell ${cls.get(p) || ""} ${past ? "past" : ""} ${current ? "now" : ""}"
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
-          <div class="h">${pad(p.hour)}:00${p.dup ? ` ${t("repeated")}` : ""}</div>
-          <div class="p">${fmt.format(p.price)}</div>
-          <div class="chips">${this._chips(ents)}</div>
+          <div><div class="h">${pad(p.hour)}:00${p.dup ? ` <small>${t("repeated")}</small>` : ""}</div>
+          <div class="p">${fmt.format(p.price)}</div></div>
+          ${this._devs(ents)}
         </div>`;
       })
       .join("");
   }
 
-  // Las celdas son cuadradas: a partir de MAX_CHIPS se resume el resto como "+N".
-  _chips(targets) {
-    const shown = targets.length > MAX_CHIPS ? targets.slice(0, MAX_CHIPS - 1) : targets;
-    const rest = targets.length - shown.length;
-    return shown.map((e) => this._chip(e)).join("") + (rest ? `<span class="chip">+${rest}</span>` : "");
+  // Uno: icono y nombre. Varios: solo iconos, y a partir de MAX_ICONS el resto como "+N".
+  _devs(targets) {
+    if (!targets.length) return "";
+    const items = targets.map((id) => this._target(id));
+    const title = esc(items.map((d) => d.name).join(", "));
+    if (items.length === 1) {
+      return `<div class="devs" title="${title}">${iconTag(items[0].icon)}<span class="name">${esc(items[0].name)}</span></div>`;
+    }
+    const shown = items.length > MAX_ICONS ? items.slice(0, MAX_ICONS - 1) : items;
+    const rest = items.length - shown.length;
+    return `<div class="devs" title="${title}">${shown.map((d) => iconTag(d.icon)).join("")}${
+      rest ? `<span class="more">+${rest}</span>` : ""}</div>`;
   }
 
-  _chip(target) {
-    const g = target.startsWith(GROUP) && this._groups[target.slice(GROUP.length)];
-    const { name, icon } = g || deviceOf(this._hass, this._devices, target);
-    return `<span class="chip">${iconTag(icon)}${esc(name)}</span>`;
+  _target(id) {
+    const g = id.startsWith(GROUP) && this._groups[id.slice(GROUP.length)];
+    const { name, icon } = g || deviceOf(this._hass, this._devices, id);
+    return { name, icon: icon || "mdi:devices" };
   }
 
   // Abre el diálogo con `html`; devuelve [contenedor, cerrar].
