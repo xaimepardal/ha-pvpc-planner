@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import voluptuous as vol
-
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
+import voluptuous as vol
 
 from .const import CONF_PRICE_ENTITY, DOMAIN, PVPC_DOMAIN
 

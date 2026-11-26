@@ -4,14 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-import voluptuous as vol
-
+from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+import voluptuous as vol
 
-from .const import DOMAIN, SIGNAL_UPDATED
+from .const import DOMAIN, SIGNAL_UPDATED, SUPPORTED_DOMAINS
 
 
 @callback
@@ -57,8 +58,23 @@ async def ws_set(
     if (planner := hass.data.get(DOMAIN)) is None:
         connection.send_error(msg["id"], "not_loaded", "PVPC Planner no está cargado")
         return
+
+    entity_ids: list[str] = msg["entity_ids"]
+    if unsupported := [
+        e for e in entity_ids if e.split(".")[0] not in SUPPORTED_DOMAINS
+    ]:
+        connection.send_error(
+            msg["id"], "invalid_entity", f"Entidades no admitidas: {unsupported}"
+        )
+        return
+    # Añadir o quitar una entidad de la hora exige poder controlarla.
+    changed = set(entity_ids) ^ set(planner.slot(msg["date"], msg["hour"]))
+    for entity_id in changed:
+        if not connection.user.permissions.check_entity(entity_id, POLICY_CONTROL):
+            raise Unauthorized(entity_id=entity_id, permission=POLICY_CONTROL)
+
     try:
-        await planner.async_set_slot(msg["date"], msg["hour"], msg["entity_ids"])
+        await planner.async_set_slot(msg["date"], msg["hour"], entity_ids)
     except ValueError as err:
         connection.send_error(msg["id"], "invalid_slot", str(err))
         return

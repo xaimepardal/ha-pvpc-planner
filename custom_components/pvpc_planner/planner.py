@@ -47,17 +47,19 @@ class Planner:
         # Tras un reinicio, recupera el estado de la hora en curso.
         self._unsubs.append(async_at_started(self.hass, self._async_tick))
 
-    @callback
-    def async_unload(self) -> None:
+    async def async_unload(self) -> None:
         while self._unsubs:
             self._unsubs.pop()()
+        # Sin esperar al guardado diferido: un reload inmediato leería datos viejos.
+        await self._store.async_save(self._data())
+
+    def slot(self, day: date, hour: int) -> list[str]:
+        return self._schedule.get(day.isoformat(), {}).get(str(hour), [])
 
     def as_dict(self) -> dict[str, Any]:
         return {"price_entity": self.price_entity, "schedule": self._schedule}
 
-    async def async_set_slot(
-        self, day: date, hour: int, entity_ids: list[str]
-    ) -> None:
+    async def async_set_slot(self, day: date, hour: int, entity_ids: list[str]) -> None:
         now = dt_util.now()
         if day < now.date() or (day == now.date() and hour < now.hour):
             raise ValueError("No se puede programar una hora pasada")
@@ -86,9 +88,7 @@ class Planner:
 
     async def async_apply(self, now: datetime | None = None) -> None:
         now = now or dt_util.now()
-        wanted = set(
-            self._schedule.get(now.date().isoformat(), {}).get(str(now.hour), [])
-        )
+        wanted = set(self.slot(now.date(), now.hour))
         to_off = [e for e in self._active - wanted if self.hass.states.get(e)]
         to_on = [
             e
@@ -119,6 +119,7 @@ class Planner:
 
     @callback
     def _save(self) -> None:
-        self._store.async_delay_save(
-            lambda: {"schedule": self._schedule, "active": sorted(self._active)}, 1
-        )
+        self._store.async_delay_save(self._data, 1)
+
+    def _data(self) -> dict[str, Any]:
+        return {"schedule": self._schedule, "active": sorted(self._active)}
