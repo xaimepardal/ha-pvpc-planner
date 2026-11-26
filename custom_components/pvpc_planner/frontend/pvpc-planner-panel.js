@@ -362,7 +362,7 @@ select.pill option { color: var(--primary-text-color); background: var(--card-ba
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
 /* Medidas en cqw: escalan con la celda. Mitad superior hora y precio; inferior, dispositivos. */
 .h, .p { font-size: 14cqw; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.p { color: var(--secondary-text-color); }
+.p { font-size: 19cqw; font-weight: 800; }
 .h small { font-size: .6em; font-weight: 500; }
 .devs { display: flex; align-items: center; align-self: end; gap: 4cqw; min-width: 0; color: var(--primary-color);
   --mdc-icon-size: 25cqw; }
