@@ -468,13 +468,17 @@ class PvpcPlannerPanel extends HTMLElement {
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
           <div class="h">${pad(p.hour)}:00${p.dup ? ` ${t("repeated")}` : ""}</div>
           <div class="p">${fmt.format(p.price)}</div>
-          <div class="chips">${ents
-            .slice(0, ents.length > MAX_CHIPS ? MAX_CHIPS - 1 : MAX_CHIPS)
-            .map((e) => this._chip(e))
-            .join("")}${ents.length > MAX_CHIPS ? `<span class="chip">+${ents.length - MAX_CHIPS + 1}</span>` : ""}</div>
+          <div class="chips">${this._chips(ents)}</div>
         </div>`;
       })
       .join("");
+  }
+
+  // Las celdas son cuadradas: a partir de MAX_CHIPS se resume el resto como "+N".
+  _chips(targets) {
+    const shown = targets.length > MAX_CHIPS ? targets.slice(0, MAX_CHIPS - 1) : targets;
+    const rest = targets.length - shown.length;
+    return shown.map((e) => this._chip(e)).join("") + (rest ? `<span class="chip">+${rest}</span>` : "");
   }
 
   _chip(target) {
