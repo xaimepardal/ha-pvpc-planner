@@ -57,5 +57,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     frontend.async_remove_panel(hass, PANEL_URL, warn_if_unknown=False)
-    hass.data.pop(DOMAIN).async_unload()
+    await hass.data.pop(DOMAIN).async_unload()
     return True

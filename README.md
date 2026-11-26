@@ -55,7 +55,7 @@ Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/`
 3. Marca los dispositivos y pulsa **Guardar**. Aparecerán como etiquetas en esa hora.
 4. Para quitar dispositivos, vuelve a abrir la hora y desmárcalos, o pulsa **Quitar todos**.
 
-Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar.
+Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar, y cada usuario solo puede programar las entidades que tiene permiso para controlar.
 
 ### Cuándo se enciende y se apaga
 
@@ -71,7 +71,8 @@ Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolea
 
 ```bash
 pip install -r requirements_test.txt
-pytest
+ruff check . && ruff format --check .
+pytest  # incluye cobertura (mínimo 95 %)
 ```
 
 ## Licencia

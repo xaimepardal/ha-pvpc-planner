@@ -4,14 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-import voluptuous as vol
-
 from homeassistant.auth.permissions.const import POLICY_CONTROL
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+import voluptuous as vol
 
 from .const import ALLOWED_DOMAINS, DOMAIN, MAX_ENTITIES_PER_SLOT, SIGNAL_UPDATED
 
