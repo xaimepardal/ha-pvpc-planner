@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 
@@ -15,7 +15,7 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import SIGNAL_UPDATED, STORAGE_KEY, STORAGE_VERSION
+from .const import MAX_DAYS_AHEAD, SIGNAL_UPDATED, STORAGE_KEY, STORAGE_VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Planner:
     """Entidades a encender por fecha y hora local.
 
     Una entidad encendida por el planner se apaga al empezar la primera hora
-    en la que no esté marcada.
+    en la que no esté marcada. Las que ya estaban encendidas no se adoptan.
     """
 
     def __init__(self, hass: HomeAssistant, price_entity: str) -> None:
@@ -55,12 +55,17 @@ class Planner:
     def as_dict(self) -> dict[str, Any]:
         return {"price_entity": self.price_entity, "schedule": self._schedule}
 
+    def slot(self, day: date, hour: int) -> list[str]:
+        return self._schedule.get(day.isoformat(), {}).get(str(hour), [])
+
     async def async_set_slot(
         self, day: date, hour: int, entity_ids: list[str]
     ) -> None:
         now = dt_util.now()
         if day < now.date() or (day == now.date() and hour < now.hour):
             raise ValueError("No se puede programar una hora pasada")
+        if day > now.date() + timedelta(days=MAX_DAYS_AHEAD):
+            raise ValueError("Solo se puede programar hoy o mañana")
 
         key = day.isoformat()
         slots = self._schedule.setdefault(key, {})
@@ -86,16 +91,14 @@ class Planner:
 
     async def async_apply(self, now: datetime | None = None) -> None:
         now = now or dt_util.now()
-        wanted = set(
-            self._schedule.get(now.date().isoformat(), {}).get(str(now.hour), [])
-        )
+        wanted = set(self.slot(now.date(), now.hour))
         to_off = [e for e in self._active - wanted if self.hass.states.get(e)]
         to_on = [
             e
             for e in wanted
             if (state := self.hass.states.get(e)) and state.state != STATE_ON
         ]
-        self._active = wanted
+        self._active = (self._active & wanted) | set(to_on)
         self._save()
         await self._async_call("turn_off", to_off)
         await self._async_call("turn_on", to_on)
