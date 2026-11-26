@@ -306,7 +306,7 @@ function nextDate(iso) {
   return d.toISOString().slice(0, 10);
 }
 
-const MAX_CHIPS = 3;
+const MAX_ICONS = 3;
 
 const STYLE = `
 :host([theme=light]) { color-scheme: light; --primary-background-color: #fafafa; --secondary-background-color: #e5e5e5;
@@ -350,22 +350,26 @@ select.pill option { color: var(--primary-text-color); background: var(--card-ba
 .grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 @container (max-width: 760px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @container (max-width: 440px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
-.cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;
-  background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
-  padding: 10px 10px 10px 13px; cursor: pointer; }
-.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 10px;
+.cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: grid; grid-template-rows: 1fr 1fr;
+  container-type: inline-size; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
+  padding: 7%; cursor: pointer; }
+.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px;
   background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
 .cell.cheap { --c: var(--success-color, #43a047); }
 .cell.expensive { --c: var(--error-color, #db4437); }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
-.h { font-size: 18px; font-weight: 500; }
-.p { font-size: 13px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; margin-top: auto; overflow: hidden; }
-.chip ha-icon { --mdc-icon-size: 12px; vertical-align: -1px; margin-right: 2px; }
-.chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 1px 6px;
-  border-radius: 10px; background: var(--primary-color); color: var(--text-primary-color, #fff); }
+/* Medidas en cqw: escalan con la celda. Mitad superior hora y precio; inferior, dispositivos. */
+.h, .p { font-size: 14cqw; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.p { color: var(--secondary-text-color); }
+.h small { font-size: .6em; font-weight: 500; }
+.devs { display: flex; align-items: center; align-self: end; gap: 4cqw; min-width: 0; color: var(--primary-color);
+  --mdc-icon-size: 25cqw; }
+.devs ha-icon { flex: none; }
+.devs .name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+  font-size: 11cqw; font-weight: 500; line-height: 1.1; color: var(--primary-text-color); }
+.devs .more { font-size: 14cqw; font-weight: 700; }
 .dialog { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 16px;
   background: rgba(0, 0, 0, .45); }
 .dialog[hidden] { display: none; }
@@ -609,25 +613,32 @@ class PvpcPlannerPanel extends HTMLElement {
         const ents = slots[p.hour] || [];
         return `<div class="cell ${cls.get(p) || ""} ${past ? "past" : ""} ${current ? "now" : ""}"
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
-          <div class="h">${pad(p.hour)}:00${p.dup ? ` ${t("repeated")}` : ""}</div>
-          <div class="p">${fmt.format(p.price)}</div>
-          <div class="chips">${this._chips(ents)}</div>
+          <div><div class="h">${pad(p.hour)}:00${p.dup ? ` <small>${t("repeated")}</small>` : ""}</div>
+          <div class="p">${fmt.format(p.price)}</div></div>
+          ${this._devs(ents)}
         </div>`;
       })
       .join("");
   }
 
-  // Las celdas son cuadradas: a partir de MAX_CHIPS se resume el resto como "+N".
-  _chips(targets) {
-    const shown = targets.length > MAX_CHIPS ? targets.slice(0, MAX_CHIPS - 1) : targets;
-    const rest = targets.length - shown.length;
-    return shown.map((e) => this._chip(e)).join("") + (rest ? `<span class="chip">+${rest}</span>` : "");
+  // Uno: icono y nombre. Varios: solo iconos, y a partir de MAX_ICONS el resto como "+N".
+  _devs(targets) {
+    if (!targets.length) return "";
+    const items = targets.map((id) => this._target(id));
+    const title = esc(items.map((d) => d.name).join(", "));
+    if (items.length === 1) {
+      return `<div class="devs" title="${title}">${iconTag(items[0].icon)}<span class="name">${esc(items[0].name)}</span></div>`;
+    }
+    const shown = items.length > MAX_ICONS ? items.slice(0, MAX_ICONS - 1) : items;
+    const rest = items.length - shown.length;
+    return `<div class="devs" title="${title}">${shown.map((d) => iconTag(d.icon)).join("")}${
+      rest ? `<span class="more">+${rest}</span>` : ""}</div>`;
   }
 
-  _chip(target) {
-    const g = target.startsWith(GROUP) && this._groups[target.slice(GROUP.length)];
-    const { name, icon } = g || deviceOf(this._hass, this._devices, target);
-    return `<span class="chip">${iconTag(icon)}${esc(name)}</span>`;
+  _target(id) {
+    const g = id.startsWith(GROUP) && this._groups[id.slice(GROUP.length)];
+    const { name, icon } = g || deviceOf(this._hass, this._devices, id);
+    return { name, icon: icon || "mdi:devices" };
   }
 
   // Abre el diálogo con `html`; devuelve [contenedor, cerrar].
