@@ -84,8 +84,33 @@ const STRINGS = {
     group_confirm_delete: "Delete?",
     group_need_name: "Enter a name",
     group_need_devices: "Pick at least one device",
-    err_not_found: "This group no longer exists.",
+    err_not_found: "It no longer exists.",
     err_invalid_group: "Too many groups.",
+    settings_templates: "Templates",
+    tpl_help: "A template marks hours by itself when prices are published. A device is on if any of its rules matches.",
+    tpl_new: "New template",
+    tpl_empty: "No templates yet.",
+    tpl_rules: "Rules",
+    tpl_or: "or",
+    tpl_add_rule: "Add rule",
+    tpl_remove_rule: "Remove rule",
+    tpl_targets: "Turn on",
+    tpl_need_targets: "Pick at least one device or group",
+    tpl_auto: "By template",
+    tpl_auto_note: "By template: {names}",
+    rule_cheapest_name: "Cheapest hours of the day",
+    rule_cheapest: "{hours} cheapest hours",
+    rule_window_name: "Cheapest in a time range",
+    rule_window: "{hours} cheapest between {from} and {to}",
+    rule_negative_name: "Negative price",
+    rule_negative: "Hours with negative price",
+    param_hours: "Hours",
+    param_from: "From",
+    param_to: "To",
+    param_after_cheapest: "Only from the cheapest hour onwards",
+    param_second_if_alone: "If only one is left, start at the second cheapest",
+    err_invalid_template: "Too many templates.",
+    err_invalid_format: "Some values are not valid.",
   },
   es: {
     loading: "Cargando…",
@@ -134,8 +159,33 @@ const STRINGS = {
     group_confirm_delete: "¿Borrar?",
     group_need_name: "Escribe un nombre",
     group_need_devices: "Elige al menos un dispositivo",
-    err_not_found: "Ese grupo ya no existe.",
+    err_not_found: "Ya no existe.",
     err_invalid_group: "Demasiados grupos.",
+    settings_templates: "Plantillas",
+    tpl_help: "Una plantilla marca las horas sola cuando se publican los precios. Un dispositivo se enciende si se cumple cualquiera de sus reglas.",
+    tpl_new: "Nueva plantilla",
+    tpl_empty: "Aún no hay plantillas.",
+    tpl_rules: "Reglas",
+    tpl_or: "o",
+    tpl_add_rule: "Añadir regla",
+    tpl_remove_rule: "Quitar regla",
+    tpl_targets: "Encender",
+    tpl_need_targets: "Elige al menos un dispositivo o grupo",
+    tpl_auto: "Por plantilla",
+    tpl_auto_note: "Por plantilla: {names}",
+    rule_cheapest_name: "Horas más baratas del día",
+    rule_cheapest: "{hours} horas más baratas",
+    rule_window_name: "Más barata en una franja",
+    rule_window: "{hours} más barata(s) entre {from} y {to}",
+    rule_negative_name: "Precio negativo",
+    rule_negative: "Horas con precio negativo",
+    param_hours: "Horas",
+    param_from: "Desde",
+    param_to: "Hasta",
+    param_after_cheapest: "Solo desde la hora más barata en adelante",
+    param_second_if_alone: "Si queda una sola, empezar en la segunda más barata",
+    err_invalid_template: "Demasiadas plantillas.",
+    err_invalid_format: "Hay valores no válidos.",
   },
   gl: {
     loading: "Cargando…",
@@ -184,8 +234,33 @@ const STRINGS = {
     group_confirm_delete: "Borrar?",
     group_need_name: "Escribe un nome",
     group_need_devices: "Escolle polo menos un dispositivo",
-    err_not_found: "Ese grupo xa non existe.",
+    err_not_found: "Xa non existe.",
     err_invalid_group: "Demasiados grupos.",
+    settings_templates: "Modelos",
+    tpl_help: "Un modelo marca as horas só cando se publican os prezos. Un dispositivo acéndese se se cumpre calquera das súas regras.",
+    tpl_new: "Novo modelo",
+    tpl_empty: "Aínda non hai modelos.",
+    tpl_rules: "Regras",
+    tpl_or: "ou",
+    tpl_add_rule: "Engadir regra",
+    tpl_remove_rule: "Quitar regra",
+    tpl_targets: "Acender",
+    tpl_need_targets: "Escolle polo menos un dispositivo ou grupo",
+    tpl_auto: "Por modelo",
+    tpl_auto_note: "Por modelo: {names}",
+    rule_cheapest_name: "Horas máis baratas do día",
+    rule_cheapest: "{hours} horas máis baratas",
+    rule_window_name: "Máis barata nunha franxa",
+    rule_window: "{hours} máis barata(s) entre {from} e {to}",
+    rule_negative_name: "Prezo negativo",
+    rule_negative: "Horas con prezo negativo",
+    param_hours: "Horas",
+    param_from: "Desde",
+    param_to: "Ata",
+    param_after_cheapest: "Só desde a hora máis barata en diante",
+    param_second_if_alone: "Se queda unha soa, comezar na segunda máis barata",
+    err_invalid_template: "Demasiados modelos.",
+    err_invalid_format: "Hai valores non válidos.",
   },
 };
 
@@ -257,6 +332,65 @@ function filterOnInput(input, root) {
     const q = input.value.trim().toLowerCase();
     root.querySelectorAll("label[data-q]").forEach((l) => (l.hidden = !l.dataset.q.includes(q)));
   });
+}
+
+// Destinos (grupos y dispositivos) para marcar; los ocultos solo si ya están elegidos.
+function targetsHtml(t, groups, devices, selected) {
+  const groupRow = (g) => `<label class="group" data-q="${esc(g.name.toLowerCase())}">
+    <input type="checkbox" value="${esc(g.id)}" ${selected.has(g.id) ? "checked" : ""}>
+    <ha-icon icon="${esc(g.icon)}"></ha-icon><span>${esc(g.name)}<small>${g.entity_ids.length === 1 ? t("group_count_one") : t("group_count", { n: g.entity_ids.length })}</small></span></label>`;
+  return (groups.length ? `<div class="section">${t("settings_groups")}</div>${groups.map(groupRow).join("")}
+      <div class="section">${t("settings_devices")}</div>` : "")
+    + (devices.map((e) => deviceRow(e, selected.has(e.id))).join("") || `<p>${t("no_devices")}</p>`);
+}
+
+// Reglas de plantilla: los controles salen del esquema que manda el backend
+// ({id, params: [{key, type: "int"|"bool", ...}]}); una regla nueva solo necesita textos.
+const paramText = (p, v) => (p.unit === "hour" ? `${pad(v)}:00` : String(v));
+
+function ruleSummary(t, rules, item) {
+  const rule = rules.find((r) => r.id === item.rule);
+  if (!rule) return item.rule;
+  const vals = Object.fromEntries(rule.params.filter((p) => p.type === "int")
+    .map((p) => [p.key, paramText(p, item.params[p.key] ?? p.default)]));
+  const flags = rule.params.filter((p) => p.type === "bool" && item.params[p.key]
+    && (!p.requires || item.params[p.requires])).map((p) => t(`param_${p.key}`).toLowerCase());
+  return t(`rule_${rule.id}`, vals) + (flags.length ? ` (${flags.join("; ")})` : "");
+}
+
+function ruleHtml(t, rules, item, removable) {
+  const rule = rules.find((r) => r.id === item.rule) || rules[0];
+  const val = (p) => item.params?.[p.key] ?? p.default;
+  const field = (p) => {
+    if (p.type === "bool") {
+      return `<label class="param check"><input type="checkbox" data-key="${p.key}" ${val(p) ? "checked" : ""}
+        ${p.requires ? `data-requires="${p.requires}"` : ""}><span>${esc(t(`param_${p.key}`))}</span></label>`;
+    }
+    const opts = [];
+    for (let v = p.min; v <= p.max; v++) {
+      opts.push(`<option value="${v}" ${v === val(p) ? "selected" : ""}>${paramText(p, v)}</option>`);
+    }
+    return `<label class="param"><span>${esc(t(`param_${p.key}`))}</span><select data-key="${p.key}">${opts.join("")}</select></label>`;
+  };
+  return `<div class="rule">
+    <div class="row"><select class="rule-id">${rules.map((r) =>
+      `<option value="${r.id}" ${r.id === rule.id ? "selected" : ""}>${esc(t(`rule_${r.id}_name`))}</option>`).join("")}</select>
+      ${removable ? `<button type="button" class="icon-btn remove" title="${esc(t("tpl_remove_rule"))}"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</div>
+    <div class="params">${rule.params.map(field).join("")}</div></div>`;
+}
+
+// Lee un bloque .rule del editor; "requires" sin marcar desactiva la casilla dependiente.
+function readRule(el, rules) {
+  const rule = rules.find((r) => r.id === el.querySelector(".rule-id").value);
+  const params = {};
+  el.querySelectorAll("[data-key]").forEach((f) => {
+    params[f.dataset.key] = f.type === "checkbox" ? f.checked : +f.value;
+  });
+  el.querySelectorAll("[data-requires]").forEach((f) => {
+    f.disabled = !params[f.dataset.requires];
+    f.closest("label").classList.toggle("off", f.disabled);
+  });
+  return { rule: rule.id, params };
 }
 
 // Atributos de pvpc_hourly_pricing: price_13h, price_next_day_13h; "_d" = hora repetida en cambio de horario.
@@ -415,6 +549,24 @@ input.switch:checked::after { transform: translateX(16px); }
 .icons[hidden] { display: none; }
 .icons button { padding: 8px; border: none; border-radius: 8px; background: none; color: inherit; cursor: pointer; }
 .icons button:hover, .icons button.on { background: color-mix(in srgb, var(--primary-color) 20%, transparent); color: var(--primary-color); }
+.cell { position: relative; }
+.badge { position: absolute; top: 6%; right: 6%; --mdc-icon-size: 15cqw; color: var(--secondary-text-color); }
+.auto-note { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 14px; color: var(--secondary-text-color);
+  --mdc-icon-size: 18px; }
+.rule { padding: 10px; margin-bottom: 4px; border: 1px solid var(--divider-color); border-radius: 12px; }
+.or { margin: 4px 0; text-align: center; font-size: 12px; text-transform: uppercase; color: var(--secondary-text-color); }
+.box select { flex: 1; min-width: 0; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color);
+  background: var(--primary-background-color); color: inherit; font: inherit; }
+.rule .row { margin: 0; }
+.params { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.params:not(:empty) { margin-top: 8px; }
+.param { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.param select { flex: none; }
+.param.check { flex-basis: 100%; cursor: pointer; }
+.param.off { opacity: .5; }
+.add-rule { align-self: flex-start; }
+.tpl-scroll { flex: 1; overflow: auto; min-height: 0; }
+.tpl-scroll .list { overflow: visible; }
 .actions { display: flex; align-items: center; gap: 8px; }
 .actions span { flex: 1; }
 .actions button { padding: 8px 14px; border: none; border-radius: 8px; background: none; color: var(--primary-color); font: inherit; cursor: pointer; }
@@ -428,6 +580,9 @@ class PvpcPlannerPanel extends HTMLElement {
     this._groups = {};
     this._hidden = [];
     this._devices = {};
+    this._templates = {};
+    this._auto = {};
+    this._rules = [];
     this._t = translator("en");
     this._prefs = loadPrefs();
     this._priceEntity = null;
@@ -531,6 +686,9 @@ class PvpcPlannerPanel extends HTMLElement {
         this._groups = msg.groups;
         this._hidden = msg.hidden;
         this._devices = msg.devices || {};
+        this._templates = msg.templates || {};
+        this._auto = msg.auto || {};
+        this._rules = msg.rules || [];
         this._priceEntity = msg.price_entity;
         this._update(true);
         this._onData?.();
@@ -585,6 +743,7 @@ class PvpcPlannerPanel extends HTMLElement {
     this._$(".legend").innerHTML = `
       <span title="${t("cheapest", { n: TOP })}"><i class="dot" style="background:var(--success-color,#43a047)"></i>$</span>
       <span title="${t("priciest", { n: TOP })}"><i class="dot" style="background:var(--error-color,#db4437)"></i>$$$</span>
+      ${Object.keys(this._templates).length ? `<span><ha-icon icon="mdi:robot" style="--mdc-icon-size:16px"></ha-icon> ${t("tpl_auto")}</span>` : ""}
       <span>${esc(unit)}</span>`;
 
     if (!prices.length) return fail(t("no_prices"));
@@ -592,6 +751,7 @@ class PvpcPlannerPanel extends HTMLElement {
 
     const cls = classify(prices);
     const slots = this._schedule[this._date] || {};
+    const auto = this._auto[this._date] || {};
     const fmt = new Intl.NumberFormat(this._lang, {
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
@@ -600,9 +760,11 @@ class PvpcPlannerPanel extends HTMLElement {
       .map((p) => {
         const past = isToday && p.hour < now.hour;
         const current = isToday && p.hour === now.hour;
-        const ents = slots[p.hour] || [];
+        const auto_ = auto[p.hour] || [];
+        const ents = [...new Set([...(slots[p.hour] || []), ...auto_])];
         return `<div class="cell ${cls.get(p) || ""} ${past ? "past" : ""} ${current ? "now" : ""}"
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
+          ${auto_.length ? `<ha-icon class="badge" icon="mdi:robot" title="${esc(t("tpl_auto"))}"></ha-icon>` : ""}
           <div><div class="h">${pad(p.hour)}:00${p.dup ? ` <small>${t("repeated")}</small>` : ""}</div>
           <div class="p">${fmt.format(p.price)}</div></div>
           ${this._devs(ents)}
@@ -672,26 +834,18 @@ class PvpcPlannerPanel extends HTMLElement {
     const hidden = new Set(this._hidden);
     // Un oculto ya marcado se muestra para poder quitarlo.
     const ents = devicesOf(hass, this._devices).filter((e) => !hidden.has(e.id) || selected.has(e.id));
-    const groups = Object.entries(this._groups)
-      .map(([id, g]) => ({ id: GROUP + id, ...g }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const groups = this._groupList();
+    const auto = this._auto[date]?.[hour] || [];
     const dayLabel = new Date(`${date}T12:00:00Z`).toLocaleDateString(this._lang, {
       weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
     });
-    const groupRow = (g) => `<label class="group" data-q="${esc(g.name.toLowerCase())}">
-      <input type="checkbox" value="${esc(g.id)}" ${selected.has(g.id) ? "checked" : ""}>
-      <ha-icon icon="${esc(g.icon)}"></ha-icon><span>${esc(g.name)}<small>${g.entity_ids.length === 1 ? t("group_count_one") : t("group_count", { n: g.entity_ids.length })}</small></span></label>`;
-
     const [dlg, close] = this._showDialog(`
       <h2>${t("turn_on", { from: `${pad(hour)}:00`, to: `${pad((hour + 1) % 24)}:00` })}</h2>
       <div class="sub">${esc(dayLabel)}</div>
+      ${auto.length ? `<p class="auto-note"><ha-icon icon="mdi:robot"></ha-icon>${esc(t("tpl_auto_note", {
+        names: auto.map((id) => this._target(id).name).join(", ") }))}</p>` : ""}
       <input type="search" placeholder="${esc(t("search"))}">
-      <div class="list">${
-        (groups.length ? `<div class="section">${t("settings_groups")}</div>${groups.map(groupRow).join("")}
-          <div class="section">${t("settings_devices")}</div>` : "")
-        + (ents.map((e) => deviceRow(e, selected.has(e.id))).join("")
-          || `<p>${t("no_devices")}</p>`)
-      }</div>
+      <div class="list">${targetsHtml(t, groups, ents, selected)}</div>
       <div class="err"></div>
       <div class="actions"><button class="clear">${t("clear")}</button><span></span>
         <button class="cancel">${t("cancel")}</button><button class="save">${t("save")}</button></div>`);
@@ -706,6 +860,12 @@ class PvpcPlannerPanel extends HTMLElement {
     };
   }
 
+  _groupList() {
+    return Object.entries(this._groups)
+      .map(([id, g]) => ({ id: GROUP + id, ...g }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   _openSettings(tab = "devices") {
     const t = this._t;
     const [dlg, close] = this._showDialog(`
@@ -713,6 +873,7 @@ class PvpcPlannerPanel extends HTMLElement {
       <div class="tabs">
         <button data-tab="devices" class="${tab === "devices" ? "on" : ""}">${t("settings_devices")}</button>
         <button data-tab="groups" class="${tab === "groups" ? "on" : ""}">${t("settings_groups")}</button>
+        <button data-tab="templates" class="${tab === "templates" ? "on" : ""}">${t("settings_templates")}</button>
       </div>
       <div class="body"></div>
       <div class="err"></div>
@@ -734,7 +895,8 @@ class PvpcPlannerPanel extends HTMLElement {
       if (b) this._openSettings(b.dataset.tab);
     };
     if (tab === "devices") this._renderHidden(ui);
-    else this._renderGroups(ui);
+    else if (tab === "groups") this._renderGroups(ui);
+    else this._renderTemplates(ui);
   }
 
   _renderHidden(ui) {
@@ -841,6 +1003,98 @@ class PvpcPlannerPanel extends HTMLElement {
       if (!entity_ids.length) return (err.textContent = t("group_need_devices"));
       const msg = { type: "pvpc_planner/group/save", name, icon: icon(), entity_ids };
       if (id) msg.group_id = id;
+      this._call(dlg, msg).then(back, () => {});
+    };
+  }
+
+  _renderTemplates(ui) {
+    const { dlg } = ui;
+    const t = this._t;
+    const body = dlg.querySelector(".body");
+    ui.closeFoot();
+    const render = () => {
+      const list = Object.entries(this._templates);
+      body.innerHTML = `<p class="help">${t("tpl_help")}</p>
+        <div class="list groups">${list.map(([id, tpl]) => `<div class="g" data-id="${esc(id)}">
+          <ha-icon icon="mdi:robot"></ha-icon>
+          <div>${tpl.rules.map((r, i) => `<div>${i ? `${t("tpl_or")} ` : ""}${esc(ruleSummary(t, this._rules, r))}</div>`).join("")}
+            <small>${esc(tpl.targets.map((id) => this._target(id).name).join(", "))}</small></div>
+          <button class="icon-btn edit" title="${esc(t("group_edit"))}"><ha-icon icon="mdi:pencil"></ha-icon></button>
+          <button class="icon-btn del" title="${esc(t("group_delete"))}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>
+        </div>`).join("") || `<p>${t("tpl_empty")}</p>`}</div>
+        <button class="new"><ha-icon icon="mdi:plus"></ha-icon>${t("tpl_new")}</button>`;
+      body.querySelector(".new").onclick = () => this._renderTemplateEditor(ui);
+    };
+    body.onclick = (e) => {
+      const b = e.target.closest(".edit, .del");
+      const id = b?.closest(".g")?.dataset.id;
+      if (!id) return;
+      if (b.classList.contains("edit")) return this._renderTemplateEditor(ui, id);
+      if (!b.classList.contains("confirm")) {
+        b.classList.add("confirm");
+        b.textContent = t("group_confirm_delete");
+        return;
+      }
+      this._call(dlg, { type: "pvpc_planner/template/delete", template_id: id }).catch(render);
+    };
+    this._onData = render;
+    render();
+  }
+
+  _renderTemplateEditor(ui, id = null) {
+    const { dlg } = ui;
+    const t = this._t;
+    const rules = this._rules;
+    const tpl = (id && this._templates[id]) || { rules: [{ rule: rules[0].id, params: {} }], targets: [] };
+    const selected = new Set(tpl.targets);
+    const hidden = new Set(this._hidden);
+    const devices = devicesOf(this._hass, this._devices).filter((e) => !hidden.has(e.id) || selected.has(e.id));
+    const body = dlg.querySelector(".body");
+    this._onData = null;
+    body.onclick = null;
+    body.innerHTML = `<div class="tpl-scroll">
+        <div class="section">${t("tpl_rules")}</div><div class="rules"></div>
+        <button type="button" class="link add-rule">+ ${t("tpl_add_rule")}</button>
+        <div class="section">${t("tpl_targets")}</div>
+        <input type="search" placeholder="${esc(t("search"))}">
+        <div class="list">${targetsHtml(t, this._groupList(), devices, selected)}</div></div>`;
+    const box = body.querySelector(".rules");
+    let items = tpl.rules.map((r) => ({ ...r, params: { ...r.params } }));
+    const draw = () => {
+      box.innerHTML = items.map((r) => ruleHtml(t, rules, r, items.length > 1))
+        .join(`<div class="or">${t("tpl_or")}</div>`);
+      box.querySelectorAll(".rule").forEach((el) => readRule(el, rules));
+    };
+    const read = () => [...box.querySelectorAll(".rule")].map((el) => readRule(el, rules));
+    // Cambiar la regla reinicia sus parámetros a los de por defecto.
+    box.onchange = (e) => {
+      items = read();
+      if (e.target.classList.contains("rule-id")) {
+        items[[...box.querySelectorAll(".rule-id")].indexOf(e.target)].params = {};
+        draw();
+      }
+    };
+    box.onclick = (e) => {
+      const b = e.target.closest(".remove");
+      if (!b) return;
+      items = read();
+      items.splice([...box.querySelectorAll(".rule")].indexOf(b.closest(".rule")), 1);
+      draw();
+    };
+    body.querySelector(".add-rule").onclick = () => {
+      items = [...read(), { rule: rules[0].id, params: {} }];
+      draw();
+    };
+    draw();
+    filterOnInput(body.querySelector("input[type=search]"), body);
+    const foot = ui.foot(`<button class="back">${t("cancel")}</button><button class="save">${t("save")}</button>`);
+    const back = () => this._renderTemplates(ui);
+    foot.querySelector(".back").onclick = back;
+    foot.querySelector(".save").onclick = () => {
+      const targets = [...body.querySelectorAll(".list input:checked")].map((b) => b.value);
+      if (!targets.length) return (dlg.querySelector(".err").textContent = t("tpl_need_targets"));
+      const msg = { type: "pvpc_planner/template/save", rules: read(), targets };
+      if (id) msg.template_id = id;
       this._call(dlg, msg).then(back, () => {});
     };
   }

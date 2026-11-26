@@ -9,10 +9,13 @@ from typing import Any
 from uuid import uuid4
 
 from homeassistant.const import STATE_ON
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_time_change,
+)
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -21,10 +24,12 @@ from .const import (
     GROUP_PREFIX,
     MAX_DAYS_AHEAD,
     MAX_GROUPS,
+    MAX_TEMPLATES,
     SIGNAL_UPDATED,
     STORAGE_KEY,
     STORAGE_VERSION,
 )
+from .rules import RULES, Price, parse_prices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +53,11 @@ class Planner:
         self.hidden: list[str] = []
         # Nombre/icono propios del panel: {"switch.termo": {"name": ..., "icon": ...}}
         self.devices: dict[str, dict[str, str]] = {}
+        # {"<id>": {"rule": "cheapest", "params": {...}, "targets": [...]}}
+        self._templates: dict[str, dict[str, Any]] = {}
+        # Horas que marcan las plantillas, con la forma de _schedule. Se calcula
+        # con los precios publicados y no se guarda: no pisa lo marcado a mano.
+        self._auto: dict[str, dict[str, list[str]]] = {}
         # Entidades encendidas por el planner en la hora en curso.
         self._active: set[str] = set()
         self._unsubs: list = []
@@ -59,9 +69,14 @@ class Planner:
         self._groups = data.get("groups", {})
         self.hidden = data.get("hidden", [])
         self.devices = data.get("devices", {})
-        self._unsubs.append(
-            async_track_time_change(self.hass, self._async_tick, minute=0, second=0)
-        )
+        self._templates = data.get("templates", {})
+        self._refresh_auto()
+        self._unsubs += [
+            async_track_time_change(self.hass, self._async_tick, minute=0, second=0),
+            async_track_state_change_event(
+                self.hass, self.price_entity, self._async_prices_changed
+            ),
+        ]
         # Tras un reinicio, recupera el estado de la hora en curso.
         self._unsubs.append(async_at_started(self.hass, self._async_tick))
 
@@ -92,10 +107,23 @@ class Planner:
             "groups": self._groups,
             "hidden": self.hidden,
             "devices": self.devices,
+            "templates": self._templates,
+            "auto": self._auto,
+            "rules": [rule.as_dict() for rule in RULES.values()],
         }
+
+    def template(self, template_id: str) -> dict[str, Any] | None:
+        return self._templates.get(template_id)
 
     def slot(self, day: date, hour: int) -> list[str]:
         return self._schedule.get(day.isoformat(), {}).get(str(hour), [])
+
+    def auto_slot(self, day: date, hour: int) -> list[str]:
+        return self._auto.get(day.isoformat(), {}).get(str(hour), [])
+
+    def _wanted(self, day: date, hour: int) -> set[str]:
+        """Lo marcado a mano más lo que marquen las plantillas."""
+        return {*self.slot(day, hour), *self.auto_slot(day, hour)}
 
     async def async_set_slot(self, day: date, hour: int, targets: list[str]) -> None:
         now = dt_util.now()
@@ -133,8 +161,82 @@ class Planner:
             for hour, targets in list(slots.items()):
                 if ref in targets:
                     self._put_slot(key, hour, [t for t in targets if t != ref])
+        for tid, tpl in list(self._templates.items()):
+            if ref in tpl["targets"]:
+                tpl["targets"].remove(ref)
+                if not tpl["targets"]:
+                    del self._templates[tid]
+        self._refresh_auto()
         self._changed()
         await self.async_apply()
+
+    async def async_save_template(
+        self,
+        template_id: str | None,
+        rules: list[dict[str, Any]],
+        targets: list[str],
+    ) -> str:
+        if template_id is None:
+            if len(self._templates) >= MAX_TEMPLATES:
+                raise ValueError(f"Máximo {MAX_TEMPLATES} plantillas")
+            template_id = uuid4().hex
+        self._templates[template_id] = {
+            "rules": rules,
+            "targets": sorted(set(targets)),
+        }
+        await self._async_update_auto(save=True)
+        return template_id
+
+    async def async_delete_template(self, template_id: str) -> None:
+        del self._templates[template_id]
+        await self._async_update_auto(save=True)
+
+    async def _async_prices_changed(self, _: Event[EventStateChangedData]) -> None:
+        await self._async_update_auto(save=False)
+
+    async def _async_update_auto(self, save: bool) -> None:
+        """Recalcula _auto; aplica solo si cambia la hora en curso."""
+        now = dt_util.now()
+        old, before = self._auto, self.auto_slot(now.date(), now.hour)
+        self._refresh_auto()
+        if save:
+            self._changed()
+        elif self._auto != old:
+            async_dispatcher_send(self.hass, SIGNAL_UPDATED)
+        if self.auto_slot(now.date(), now.hour) != before:
+            await self.async_apply(now)
+
+    @callback
+    def _refresh_auto(self) -> None:
+        """Recalcula _auto con los precios de hoy y mañana que haya publicados."""
+        self._auto = {}
+        state = self.hass.states.get(self.price_entity)
+        if state is None or not self._templates:
+            return
+        # Los atributos price_XXh son del día de su última actualización, no de
+        # hoy: justo tras medianoche aún pueden ser los de ayer.
+        base = dt_util.as_local(state.last_updated).date()
+        today = dt_util.now().date()
+        for offset in (0, 1):
+            day = base + timedelta(days=offset)
+            if day < today or not (prices := parse_prices(state.attributes, offset)):
+                continue
+            slots: dict[str, set[str]] = {}
+            for tpl in self._templates.values():
+                for hour in self._template_hours(tpl, prices):
+                    slots.setdefault(str(hour), set()).update(tpl["targets"])
+            if slots:
+                self._auto[day.isoformat()] = {h: sorted(t) for h, t in slots.items()}
+
+    @staticmethod
+    def _template_hours(tpl: dict[str, Any], prices: list[Price]) -> set[int]:
+        """Horas de cualquiera de sus reglas (O lógico)."""
+        hours: set[int] = set()
+        for item in tpl["rules"]:
+            # Una regla retirada en otra versión se ignora.
+            if rule := RULES.get(item["rule"]):
+                hours |= rule.hours(prices, item["params"])
+        return hours
 
     @callback
     def set_hidden(self, entity_ids: list[str]) -> None:
@@ -160,7 +262,7 @@ class Planner:
 
     async def _async_apply_if_current(self, target: str) -> None:
         now = dt_util.now()
-        if target in self.slot(now.date(), now.hour):
+        if target in self._wanted(now.date(), now.hour):
             await self.async_apply(now)
 
     async def _async_tick(self, _: Any = None) -> None:
@@ -170,11 +272,13 @@ class Planner:
             del self._schedule[d]
         if old:
             self._changed()
+        # Al cambiar de día, _auto pierde el anterior.
+        self._refresh_auto()
         await self.async_apply()
 
     async def async_apply(self, now: datetime | None = None) -> None:
         now = now or dt_util.now()
-        wanted = self.entities(self.slot(now.date(), now.hour))
+        wanted = self.entities(self._wanted(now.date(), now.hour))
         to_off = [e for e in self._active - wanted if self.hass.states.get(e)]
         to_on = [
             e
@@ -214,4 +318,5 @@ class Planner:
             "groups": self._groups,
             "hidden": self.hidden,
             "devices": self.devices,
+            "templates": self._templates,
         }
