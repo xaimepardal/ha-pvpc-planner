@@ -104,7 +104,7 @@ class PvpcPlannerPanel extends HTMLElement {
     this._last = {};
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar"><ha-menu-button></ha-menu-button><div>PVPC</div></div>
+      <div class="toolbar"><ha-menu-button></ha-menu-button><div>PVPC Planner</div></div>
       <div class="content">
         <div class="bar"><div class="tabs"></div><div class="legend"></div></div>
         <div class="msg"></div>
