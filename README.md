@@ -3,20 +3,20 @@
 Panel para Home Assistant que muestra los precios PVPC por horas y enciende tus dispositivos en las horas que elijas.
 
 <p align="center">
-  <img src="docs/manana.png" width="220" alt="Precios de mañana con dispositivos programados">
-  <img src="docs/dialogo.png" width="220" alt="Elegir qué encender en una hora">
-  <img src="docs/hoy.png" width="220" alt="Hoy: horas pasadas atenuadas y hora actual marcada">
-  <img src="docs/oscuro.png" width="220" alt="Tema oscuro">
+  <img src="docs/manana.png" width="200" alt="Precios de mañana con dispositivos programados">
+  <img src="docs/hora.png" width="200" alt="Elegir qué encender en una hora">
+  <img src="docs/hoy-oscuro.png" width="200" alt="Hoy en tema oscuro: horas pasadas atenuadas y hora actual marcada">
 </p>
 
-<sub>Capturas de un entorno simulado en un móvil con datos de ejemplo.</sub>
+<sub>Capturas de un entorno simulado con datos de ejemplo.</sub>
 
 ## Qué hace
 
 - Muestra los precios PVPC de **hoy** y, cuando REE los publica (hacia las 20:30), los de **mañana**.
 - Marca en **verde** las 6 horas más baratas del día y en **rojo** las 6 más caras. Los periodos punta, llano y valle no se tienen en cuenta.
 - Al pulsar una hora eliges qué dispositivos deben estar **encendidos** durante esa hora.
-- La programación es para una fecha concreta y no se repite.
+- Las **plantillas** marcan horas solas cada día según reglas de precio (p. ej. las 3 horas más baratas).
+- Lo marcado a mano es para una fecha concreta y no se repite.
 - Interfaz en español, gallego e inglés según el idioma del usuario en Home Assistant (inglés por defecto).
 
 ## Requisitos
@@ -41,7 +41,7 @@ O a mano:
 
 [![Añadir PVPC Planner a Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=pvpc_planner)
 
-Aparecerá **PVPC** en la barra lateral.
+Aparecerá **PVPC Planner** en la barra lateral.
 
 <details>
 <summary>Instalación manual</summary>
@@ -51,18 +51,42 @@ Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/`
 
 ## Uso
 
-1. Abre **PVPC** en la barra lateral y elige **Hoy** o **Mañana**.
-2. Pulsa la hora en la que quieres encender algo.
-3. Marca los dispositivos y pulsa **Guardar**. Aparecerán como etiquetas en esa hora.
-4. Para quitar dispositivos, vuelve a abrir la hora y desmárcalos, o pulsa **Quitar todos**.
+### A mano
 
-En **Ajustes** (arriba a la derecha) puedes:
+1. Abre **PVPC Planner** en la barra lateral y elige **Hoy** o **Mañana**.
+2. Pulsa una hora, marca los dispositivos o grupos y pulsa **Guardar**.
+3. Para quitarlos, vuelve a abrir la hora y desmárcalos, o pulsa **Quitar todos**.
 
-- Ocultar los dispositivos que no quieras ver al elegir una hora, o cambiarles el nombre y el icono (solo en este panel).
-- Crear **grupos**: un nombre, un icono y varios dispositivos que se encienden y apagan juntos. Aparecen al pulsar una hora como un dispositivo más.
-- Crear **plantillas**: reglas que marcan solas las horas de uno o varios dispositivos o grupos cada día, en cuanto se publican los precios. Reglas disponibles: las N horas más baratas (opcionalmente solo desde la más barata en adelante y, si queda sola, desde la segunda), las N más baratas en una franja horaria y las horas con precio negativo. Varias reglas en una plantilla se suman (basta con que se cumpla una). Lo que marca una plantilla se suma a lo marcado a mano y se distingue con el icono de un robot.
+<p align="center"><img src="docs/manual.gif" width="300" alt="Programar el calentador hoy a las 14:00"></p>
 
-Junto a **Ajustes** se alterna entre tema claro y oscuro; por defecto se usa el de Home Assistant y la elección se guarda en el navegador.
+### Con una plantilla
+
+1. **Ajustes → Plantillas → Nueva plantilla**.
+2. Elige una o varias reglas. Basta con que se cumpla una:
+   - **Horas más baratas del día**: las N más baratas, opcionalmente solo desde la más barata en adelante (y, si queda sola, desde la segunda).
+   - **Más barata en una franja**: las N más baratas entre dos horas.
+   - **Precio negativo**.
+3. Marca qué encender y pulsa **Guardar**.
+
+Las horas se calculan en cuanto se publican los precios y se suman a lo marcado a mano. Se distinguen por el icono del robot.
+
+<p align="center"><img src="docs/plantilla.gif" width="300" alt="Plantilla: el calentador en las 3 horas más baratas"></p>
+
+### Ajustes
+
+- **Dispositivos**: ocultar los que no quieras ver al elegir una hora, y cambiar nombre e icono (solo en el panel).
+- **Grupos**: varios dispositivos con un nombre y un icono que se encienden y apagan juntos.
+- **Plantillas**: ver arriba.
+
+<p align="center">
+  <img src="docs/ajustes-dispositivos.png" width="200" alt="Ajustes: dispositivos visibles, con nombre e icono propios">
+  <img src="docs/ajustes-grupo.png" width="200" alt="Ajustes: editar un grupo">
+  <img src="docs/ajustes-plantilla.png" width="200" alt="Ajustes: editar una plantilla">
+</p>
+
+El botón junto a **Ajustes** alterna entre tema claro y oscuro; por defecto se usa el de Home Assistant y la elección se guarda en el navegador. En pantallas anchas la rejilla muestra 6 horas por fila:
+
+<p align="center"><img src="docs/escritorio.png" width="640" alt="Vista de escritorio"></p>
 
 Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar, y cada usuario solo puede programar las entidades que tiene permiso para controlar.
 
