@@ -306,6 +306,8 @@ function nextDate(iso) {
   return d.toISOString().slice(0, 10);
 }
 
+const MAX_CHIPS = 3;
+
 const STYLE = `
 :host([theme=light]) { color-scheme: light; --primary-background-color: #fafafa; --secondary-background-color: #e5e5e5;
   --card-background-color: #fff; --primary-text-color: #212121; --secondary-text-color: #727272;
@@ -333,7 +335,7 @@ const STYLE = `
 .pill:hover { background: rgba(255, 255, 255, .28); }
 select.pill { appearance: none; padding: 0 12px; }
 select.pill option { color: var(--primary-text-color); background: var(--card-background-color); }
-.content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; }
+.content { max-width: 1100px; margin: 0 auto; padding: 12px; box-sizing: border-box; container-type: inline-size; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 12px; }
 .tabs { display: flex; gap: 8px; }
 .tabs button { padding: 8px 18px; border-radius: 18px; border: 1px solid var(--divider-color); background: var(--card-background-color);
@@ -344,19 +346,23 @@ select.pill option { color: var(--primary-text-color); background: var(--card-ba
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
 .msg:empty { display: none; }
 .msg { padding: 12px; border-radius: 8px; background: var(--card-background-color); margin-bottom: 12px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-.cell { background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 10px;
-  padding: 7px 9px 7px 12px; cursor: pointer; }
-.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 9px;
+/* Columnas divisoras de 24 para filas completas; celdas cuadradas. */
+.grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+@container (max-width: 760px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 440px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } }
+.cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: flex; flex-direction: column;
+  background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
+  padding: 10px 10px 10px 13px; cursor: pointer; }
+.cell.cheap, .cell.expensive { border-color: var(--c); border-left-width: 4px; padding-left: 10px;
   background: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); }
 .cell.cheap { --c: var(--success-color, #43a047); }
 .cell.expensive { --c: var(--error-color, #db4437); }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
-.h { font-size: 15px; font-weight: 500; }
-.p { font-size: 12px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
-.chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.h { font-size: 18px; font-weight: 500; }
+.p { font-size: 13px; color: var(--secondary-text-color); font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px; margin-top: auto; overflow: hidden; }
 .chip ha-icon { --mdc-icon-size: 12px; vertical-align: -1px; margin-right: 2px; }
 .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; padding: 1px 6px;
   border-radius: 10px; background: var(--primary-color); color: var(--text-primary-color, #fff); }
@@ -605,10 +611,17 @@ class PvpcPlannerPanel extends HTMLElement {
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
           <div class="h">${pad(p.hour)}:00${p.dup ? ` ${t("repeated")}` : ""}</div>
           <div class="p">${fmt.format(p.price)}</div>
-          <div class="chips">${ents.map((e) => this._chip(e)).join("")}</div>
+          <div class="chips">${this._chips(ents)}</div>
         </div>`;
       })
       .join("");
+  }
+
+  // Las celdas son cuadradas: a partir de MAX_CHIPS se resume el resto como "+N".
+  _chips(targets) {
+    const shown = targets.length > MAX_CHIPS ? targets.slice(0, MAX_CHIPS - 1) : targets;
+    const rest = targets.length - shown.length;
+    return shown.map((e) => this._chip(e)).join("") + (rest ? `<span class="chip">+${rest}</span>` : "");
   }
 
   _chip(target) {
