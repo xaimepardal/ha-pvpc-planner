@@ -9,6 +9,8 @@ CONF_PRICE_ENTITY = "price_entity"
 ALLOWED_DOMAINS = frozenset({"switch", "light", "fan", "input_boolean", "humidifier"})
 MAX_ENTITIES_PER_SLOT = 50
 MAX_GROUPS = 50
+MAX_TEMPLATES = 50
+MAX_RULES_PER_TEMPLATE = 10
 MAX_HIDDEN = 1000
 MAX_CUSTOMIZED = 1000
 # Prefijo de las referencias a grupos dentro de una hora.

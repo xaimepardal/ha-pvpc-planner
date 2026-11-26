@@ -20,11 +20,13 @@ from .const import (
     MAX_CUSTOMIZED,
     MAX_ENTITIES_PER_SLOT,
     MAX_HIDDEN,
+    MAX_RULES_PER_TEMPLATE,
     SIGNAL_UPDATED,
 )
 from .planner import Planner
+from .rules import RULES
 
-GROUP_ID = vol.Match(r"^[0-9a-f]{32}$")
+GROUP_ID = TEMPLATE_ID = vol.Match(r"^[0-9a-f]{32}$")
 NAME = vol.All(str, vol.Strip, vol.Length(max=40))
 ICON = vol.Match(r"^mdi:[a-z0-9]+(-[a-z0-9]+)*$")
 
@@ -44,6 +46,15 @@ def _target(value: Any) -> str:
     return _allowed_entity_id(value)
 
 
+def _rule(value: Any) -> dict[str, Any]:
+    """{"rule": id, "params": {...}} validado con el esquema declarado por la regla."""
+    item = vol.Schema(
+        {vol.Required("rule"): vol.In(RULES), vol.Optional("params", default={}): dict}
+    )(value)
+    rule = item["rule"]
+    return {"rule": rule, "params": RULES[rule].validate(item["params"])}
+
+
 def _entity_list(min_len: int, max_len: int) -> vol.All:
     return vol.All([_allowed_entity_id], vol.Length(min=min_len, max=max_len))
 
@@ -57,6 +68,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_group_delete,
         ws_hidden,
         ws_device,
+        ws_template_save,
+        ws_template_delete,
     ):
         websocket_api.async_register_command(hass, command)
 
@@ -67,6 +80,15 @@ def _planner(
     if (planner := hass.data.get(DOMAIN)) is None:
         connection.send_error(msg_id, "not_loaded", "PVPC Planner is not loaded")
     return planner
+
+
+def _unknown_groups(planner: Planner, targets: Iterable[str]) -> list[str]:
+    return [
+        t
+        for t in targets
+        if t.startswith(GROUP_PREFIX)
+        and planner.group(t.removeprefix(GROUP_PREFIX)) is None
+    ]
 
 
 def _check_control(
@@ -116,12 +138,7 @@ async def ws_set(
     if (planner := _planner(hass, connection, msg["id"])) is None:
         return
     targets: list[str] = msg["entity_ids"]
-    if missing := [
-        t
-        for t in targets
-        if t.startswith(GROUP_PREFIX)
-        and planner.group(t.removeprefix(GROUP_PREFIX)) is None
-    ]:
+    if missing := _unknown_groups(planner, targets):
         connection.send_error(msg["id"], "not_found", f"Unknown groups: {missing}")
         return
     # Añadir o quitar una entidad (o grupo) exige poder controlar sus entidades.
@@ -224,4 +241,64 @@ def ws_device(
         connection.send_error(msg["id"], "invalid_device", "Too many devices")
         return
     planner.set_device(entity_id, msg.get("name"), msg.get("icon"))
+    connection.send_result(msg["id"])
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template/save",
+        vol.Optional("template_id"): TEMPLATE_ID,
+        vol.Required("rules"): vol.All(
+            [_rule], vol.Length(min=1, max=MAX_RULES_PER_TEMPLATE)
+        ),
+        vol.Required("targets"): vol.All(
+            [_target], vol.Length(min=1, max=MAX_ENTITIES_PER_SLOT)
+        ),
+    }
+)
+@websocket_api.async_response
+async def ws_template_save(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    if (planner := _planner(hass, connection, msg["id"])) is None:
+        return
+    template_id = msg.get("template_id")
+    old: list[str] = []
+    if template_id is not None:
+        if (template := planner.template(template_id)) is None:
+            connection.send_error(msg["id"], "not_found", "Unknown template")
+            return
+        old = template["targets"]
+    if missing := _unknown_groups(planner, msg["targets"]):
+        connection.send_error(msg["id"], "not_found", f"Unknown groups: {missing}")
+        return
+    # Una plantilla enciende y apaga sus destinos: hace falta controlarlos todos.
+    _check_control(connection, planner.entities({*old, *msg["targets"]}))
+    try:
+        template_id = await planner.async_save_template(
+            template_id, msg["rules"], msg["targets"]
+        )
+    except ValueError as err:
+        connection.send_error(msg["id"], "invalid_template", str(err))
+        return
+    connection.send_result(msg["id"], {"template_id": template_id})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/template/delete",
+        vol.Required("template_id"): TEMPLATE_ID,
+    }
+)
+@websocket_api.async_response
+async def ws_template_delete(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    if (planner := _planner(hass, connection, msg["id"])) is None:
+        return
+    if (template := planner.template(msg["template_id"])) is None:
+        connection.send_error(msg["id"], "not_found", "Unknown template")
+        return
+    _check_control(connection, planner.entities(template["targets"]))
+    await planner.async_delete_template(msg["template_id"])
     connection.send_result(msg["id"])
