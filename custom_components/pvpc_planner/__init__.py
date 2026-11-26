@@ -19,10 +19,12 @@ from .const import (
     STATIC_URL,
 )
 from .planner import Planner
+from .publisher import Publisher
 from .websocket_api import async_register_commands
 
 # Las rutas estáticas y comandos websocket no se pueden desregistrar.
 _REGISTERED = f"{DOMAIN}_registered"
+_PUBLISHER = f"{DOMAIN}_publisher"
 PLATFORMS = [Platform.IMAGE]
 
 
@@ -55,12 +57,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         require_admin=False,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await _async_start_publisher(hass, entry)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
+
+
+async def _async_start_publisher(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    old = hass.data.get(_PUBLISHER)
+    hass.data[_PUBLISHER] = publisher = Publisher(
+        hass, hass.data[DOMAIN], entry.options
+    )
+    if old:
+        await old.async_stop()
+    await publisher.async_start()
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    # Solo cambia la publicación MQTT: no hace falta recargar la entrada.
+    await _async_start_publisher(hass, entry)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         return False
+    await hass.data.pop(_PUBLISHER).async_stop()
     frontend.async_remove_panel(hass, PANEL_URL, warn_if_unknown=False)
     await hass.data.pop(DOMAIN).async_unload()
     return True

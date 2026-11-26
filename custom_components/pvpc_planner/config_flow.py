@@ -1,19 +1,92 @@
-"""Config flow: elegir el sensor PVPC de la integración oficial."""
+"""Config flow (sensor PVPC) y opciones (publicación MQTT de las imágenes)."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
+from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    EntitySelector,
+    EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+    TimeSelector,
+)
 import voluptuous as vol
 
-from .const import CONF_PRICE_ENTITY, DOMAIN, PVPC_DOMAIN
+from .const import (
+    CONF_ACTIVE_FROM,
+    CONF_ACTIVE_TO,
+    CONF_CA_CERT,
+    CONF_INTERVAL,
+    CONF_PRICE_ENTITY,
+    CONF_TLS,
+    CONF_TOPIC_TODAY,
+    CONF_TOPIC_TOMORROW,
+    DEFAULT_INTERVAL,
+    DEFAULT_MQTT_PORT,
+    DEFAULT_TOPIC_TODAY,
+    DEFAULT_TOPIC_TOMORROW,
+    DOMAIN,
+    PVPC_DOMAIN,
+)
+from .publisher import check_connection
+
+_TOPICS = (CONF_TOPIC_TODAY, CONF_TOPIC_TOMORROW)
+_TEXT_OPTIONS = (CONF_HOST, CONF_CA_CERT, CONF_USERNAME, *_TOPICS)
+
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(CONF_HOST): TextSelector(),
+        vol.Required(CONF_PORT, default=DEFAULT_MQTT_PORT): NumberSelector(
+            NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)
+        ),
+        vol.Required(CONF_TLS, default=True): BooleanSelector(),
+        vol.Optional(CONF_CA_CERT): TextSelector(TextSelectorConfig(multiline=True)),
+        vol.Optional(CONF_USERNAME): TextSelector(
+            TextSelectorConfig(autocomplete="username")
+        ),
+        vol.Optional(CONF_PASSWORD): TextSelector(
+            TextSelectorConfig(
+                type=TextSelectorType.PASSWORD, autocomplete="current-password"
+            )
+        ),
+        vol.Optional(CONF_TOPIC_TODAY): TextSelector(),
+        vol.Optional(CONF_TOPIC_TOMORROW): TextSelector(),
+        vol.Required(CONF_INTERVAL, default=DEFAULT_INTERVAL): NumberSelector(
+            NumberSelectorConfig(
+                min=1,
+                max=1440,
+                unit_of_measurement="min",
+                mode=NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Optional(CONF_ACTIVE_FROM): TimeSelector(),
+        vol.Optional(CONF_ACTIVE_TO): TimeSelector(),
+    }
+)
 
 
 class PvpcPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return PvpcPlannerOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -47,3 +120,53 @@ class PvpcPlannerConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
+
+
+def _options(user_input: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
+    """Normaliza el formulario. Contraseña vacía = la guardada, si hay usuario."""
+    options = {k: v for k, v in user_input.items() if k not in _TEXT_OPTIONS}
+    options |= {k: v for k in _TEXT_OPTIONS if (v := user_input.get(k, "").strip())}
+    # Topic vacío = no se publica esa imagen.
+    options |= {k: options.get(k, "") for k in _TOPICS}
+    options[CONF_PORT] = int(options[CONF_PORT])
+    options[CONF_INTERVAL] = int(options[CONF_INTERVAL])
+    if not options.get(CONF_USERNAME):
+        options.pop(CONF_PASSWORD, None)
+    elif not options.get(CONF_PASSWORD) and current.get(CONF_PASSWORD):
+        options[CONF_PASSWORD] = current[CONF_PASSWORD]
+    return options
+
+
+def _valid_topic(topic: str) -> bool:
+    return not set(topic) & {"+", "#", "\0"} and len(topic.encode()) <= 65535
+
+
+class PvpcPlannerOptionsFlow(OptionsFlow):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        current = dict(self.config_entry.options)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            options = _options(user_input, current)
+            if not all(_valid_topic(options[k]) for k in _TOPICS):
+                errors["base"] = "invalid_topic"
+            elif options.get(CONF_HOST) and (
+                error := await self.hass.async_add_executor_job(
+                    check_connection, options
+                )
+            ):
+                errors["base"] = error
+            if not errors:
+                return self.async_create_entry(data=options)
+
+        # La contraseña nunca se manda al navegador.
+        shown = {CONF_TOPIC_TODAY: DEFAULT_TOPIC_TODAY}
+        shown[CONF_TOPIC_TOMORROW] = DEFAULT_TOPIC_TOMORROW
+        shown |= current | (user_input or {})
+        shown.pop(CONF_PASSWORD, None)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(OPTIONS_SCHEMA, shown),
+            errors=errors,
+        )

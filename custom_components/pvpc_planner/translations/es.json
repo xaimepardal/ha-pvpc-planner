@@ -23,5 +23,40 @@
         "name": "Mañana"
       }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Publicar por MQTT",
+        "description": "Envía las imágenes de hoy y de mañana a un broker MQTT para pantallas e-paper (reTerminal E1001 con epaper-home). Solo se publica cuando cambian. Deja el servidor vacío para no publicar.",
+        "data": {
+          "host": "Servidor",
+          "port": "Puerto",
+          "tls": "TLS",
+          "ca_cert": "Certificado de la CA (PEM)",
+          "username": "Usuario",
+          "password": "Contraseña",
+          "topic_today": "Topic de hoy",
+          "topic_tomorrow": "Topic de mañana",
+          "interval": "Intervalo",
+          "active_from": "Activo desde",
+          "active_to": "Activo hasta"
+        },
+        "data_description": {
+          "ca_cert": "Vacío: las CA del sistema.",
+          "password": "Vacío: se mantiene la guardada.",
+          "topic_today": "Vacío: no se publica.",
+          "topic_tomorrow": "Vacío: no se publica.",
+          "interval": "Cada cuánto se comprueba si la imagen ha cambiado.",
+          "active_from": "Fuera de esta franja no se publica. Sin franja: todo el día."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se pudo conectar al broker.",
+      "invalid_auth": "Usuario o contraseña incorrectos.",
+      "invalid_ca": "El certificado de la CA no es válido.",
+      "invalid_topic": "Los topics no pueden llevar comodines (+ o #)."
+    }
   }
 }

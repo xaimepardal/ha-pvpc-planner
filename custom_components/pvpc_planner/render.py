@@ -107,9 +107,13 @@ def texts(lang: str) -> dict[str, str]:
     return TEXTS.get(lang) or TEXTS.get(lang.split("-")[0]) or TEXTS["en"]
 
 
+def render(table: Table) -> Image.Image:
+    return _Painter(table).paint()
+
+
 def render_png(table: Table) -> bytes:
     """PNG con paleta reducida."""
-    img = _Painter(table).paint().quantize(PALETTE_COLORS, dither=Image.Dither.NONE)
+    img = render(table).quantize(PALETTE_COLORS, dither=Image.Dither.NONE)
     buf = BytesIO()
     img.save(buf, "PNG", optimize=True)
     return buf.getvalue()

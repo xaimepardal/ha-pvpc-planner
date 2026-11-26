@@ -38,3 +38,16 @@ DOMAIN_ICONS = {
     "humidifier": "mdi:air-humidifier",
 }
 GROUP_ICON = "mdi:devices"
+
+# Publicación MQTT de las imágenes (opciones de la entrada).
+CONF_TLS = "tls"
+CONF_CA_CERT = "ca_cert"
+CONF_TOPIC_TODAY = "topic_today"
+CONF_TOPIC_TOMORROW = "topic_tomorrow"
+CONF_INTERVAL = "interval"
+CONF_ACTIVE_FROM = "active_from"
+CONF_ACTIVE_TO = "active_to"
+DEFAULT_MQTT_PORT = 8883
+DEFAULT_TOPIC_TODAY = "reterminal/imagen/1"
+DEFAULT_TOPIC_TOMORROW = "reterminal/imagen/2"
+DEFAULT_INTERVAL = 60

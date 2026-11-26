@@ -31,6 +31,7 @@ async def async_setup_integration(
     hass_storage: dict[str, Any] | None = None,
     stored: dict[str, Any] | None = None,
     initial_on: tuple[str, ...] = (),
+    options: dict[str, Any] | None = None,
 ) -> MockConfigEntry:
     await hass.config.async_set_time_zone("Europe/Madrid")
     if stored is not None:
@@ -44,7 +45,9 @@ async def async_setup_integration(
             }
         },
     )
-    entry = MockConfigEntry(domain=DOMAIN, data={CONF_PRICE_ENTITY: "sensor.pvpc"})
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={CONF_PRICE_ENTITY: "sensor.pvpc"}, options=options or {}
+    )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
