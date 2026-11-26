@@ -20,7 +20,7 @@ TERMO = "input_boolean.termo"
 LAVADORA = "input_boolean.lavadora"
 
 
-async def _setup(hass: HomeAssistant, hass_ws_client):
+async def _setup(hass: HomeAssistant, hass_ws_client, access_token=None):
     await hass.config.async_set_time_zone("Europe/Madrid")
     assert await async_setup_component(
         hass, "input_boolean", {"input_boolean": {"termo": {}, "lavadora": {}}}
@@ -30,7 +30,14 @@ async def _setup(hass: HomeAssistant, hass_ws_client):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     # El websocket arranca el servidor HTTP: tiene que ir después de cargar frontend.
-    return await hass_ws_client(hass)
+    return await hass_ws_client(hass, *([access_token] if access_token else []))
+
+
+async def _set(ws, ids, hour=10, day="2026-11-25"):
+    await ws.send_json_auto_id(
+        {"type": f"{DOMAIN}/set", "date": day, "hour": hour, "entity_ids": ids}
+    )
+    return await ws.receive_json()
 
 
 async def _tick(hass, freezer, hour, minute=0):
@@ -94,6 +101,40 @@ async def test_unmark_current_hour_turns_off(hass, hass_ws_client, freezer) -> N
         )
         assert (await ws.receive_json())["success"]
         await hass.async_block_till_done()
+    assert hass.states.get(TERMO).state == "off"
+
+
+@pytest.mark.freeze_time("2026-11-25 09:30:00+00:00")
+async def test_manually_on_is_not_turned_off(hass, hass_ws_client, freezer) -> None:
+    ws = await _setup(hass, hass_ws_client)
+    await hass.services.async_call("input_boolean", "turn_on", {"entity_id": TERMO}, blocking=True)
+    assert (await _set(ws, [TERMO], hour=11))["success"]
+
+    await _tick(hass, freezer, 11)
+    await _tick(hass, freezer, 12)
+    assert hass.states.get(TERMO).state == "on"
+
+
+@pytest.mark.freeze_time("2026-11-25 09:30:00+00:00")
+async def test_set_rejects_invalid_input(hass, hass_ws_client) -> None:
+    ws = await _setup(hass, hass_ws_client)
+    for ids, day in (
+        (["lock.puerta"], "2026-11-25"),
+        ([f"switch.s{i}" for i in range(51)], "2026-11-25"),
+        ([TERMO], "2026-11-27"),
+    ):
+        msg = await _set(ws, ids, day=day)
+        assert not msg["success"], (ids, day)
+    assert (await _set(ws, [TERMO], day="2026-11-26"))["success"]
+
+
+@pytest.mark.freeze_time("2026-11-25 09:30:00+00:00")
+async def test_set_requires_control_permission(
+    hass, hass_ws_client, hass_read_only_access_token
+) -> None:
+    ws = await _setup(hass, hass_ws_client, hass_read_only_access_token)
+    msg = await _set(ws, [TERMO])
+    assert msg["error"]["code"] == "unauthorized"
     assert hass.states.get(TERMO).state == "off"
 
 
