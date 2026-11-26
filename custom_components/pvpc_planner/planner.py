@@ -96,9 +96,9 @@ class Planner:
     async def async_set_slot(self, day: date, hour: int, targets: list[str]) -> None:
         now = dt_util.now()
         if day < now.date() or (day == now.date() and hour < now.hour):
-            raise ValueError("No se puede programar una hora pasada")
+            raise ValueError("Cannot schedule a past hour")
         if day > now.date() + timedelta(days=MAX_DAYS_AHEAD):
-            raise ValueError("Solo se puede programar hoy o mañana")
+            raise ValueError("Only today or tomorrow can be scheduled")
 
         self._put_slot(day.isoformat(), str(hour), targets)
         self._changed()

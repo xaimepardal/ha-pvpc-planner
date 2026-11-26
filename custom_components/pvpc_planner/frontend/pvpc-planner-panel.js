@@ -2,8 +2,36 @@ const DOMAINS = ["switch", "light", "fan", "input_boolean", "humidifier"];
 const TOP = 6;
 const GROUP = "group:";
 
+const ICONS = [
+  "mdi:flash", "mdi:power-socket-eu", "mdi:water-boiler", "mdi:washing-machine", "mdi:tumble-dryer",
+  "mdi:dishwasher", "mdi:radiator", "mdi:heat-pump", "mdi:air-conditioner", "mdi:fan", "mdi:air-humidifier",
+  "mdi:lightbulb-group", "mdi:lamp", "mdi:ev-station", "mdi:car-electric", "mdi:battery-charging",
+  "mdi:water-pump", "mdi:pool", "mdi:sprinkler", "mdi:fridge", "mdi:stove", "mdi:microwave",
+  "mdi:coffee-maker", "mdi:kettle", "mdi:television", "mdi:desktop-tower", "mdi:router-wireless",
+  "mdi:robot-vacuum", "mdi:home", "mdi:sofa", "mdi:bed", "mdi:garage", "mdi:tools", "mdi:solar-power",
+];
+
+// Claves que falten en un idioma caen a inglés.
 const STRINGS = {
   en: {
+    loading: "Loading…",
+    missing_sensor: "{entity} not found. Check the PVPC integration.",
+    today: "Today",
+    tomorrow: "Tomorrow",
+    tomorrow_pending: "Published around 20:30",
+    cheapest: "{n} cheapest",
+    priciest: "{n} most expensive",
+    no_prices: "No prices for this day.",
+    repeated: "(2nd)",
+    turn_on: "Turn on {from}–{to}",
+    search: "Search device",
+    no_devices: "No on/off devices.",
+    clear: "Clear all",
+    cancel: "Cancel",
+    save: "Save",
+    err_unauthorized: "You are not allowed to control some of these devices.",
+    err_invalid_slot: "That hour can no longer be scheduled.",
+    err_not_loaded: "PVPC Planner is not loaded.",
     settings_title: "Settings",
     settings_devices: "Devices",
     settings_groups: "Groups",
@@ -12,7 +40,6 @@ const STRINGS = {
     hidden_count: "{shown} of {total} visible",
     hidden_show_all: "Show all",
     hidden_hide_all: "Hide all",
-    hidden_search: "Search device",
     group_help: "A group turns several devices on and off together.",
     group_new: "New group",
     group_empty: "No groups yet.",
@@ -25,10 +52,28 @@ const STRINGS = {
     group_confirm_delete: "Delete?",
     group_need_name: "Enter a name",
     group_need_devices: "Pick at least one device",
-    group_cancel: "Cancel",
-    group_save: "Save",
+    err_not_found: "This group no longer exists.",
+    err_invalid_group: "Too many groups.",
   },
   es: {
+    loading: "Cargando…",
+    missing_sensor: "No se encuentra {entity}. Revisa la integración PVPC.",
+    today: "Hoy",
+    tomorrow: "Mañana",
+    tomorrow_pending: "Se publican hacia las 20:30",
+    cheapest: "{n} más baratas",
+    priciest: "{n} más caras",
+    no_prices: "Sin precios para este día.",
+    repeated: "(bis)",
+    turn_on: "Encender {from}–{to}",
+    search: "Buscar dispositivo",
+    no_devices: "No hay dispositivos de encendido/apagado.",
+    clear: "Quitar todos",
+    cancel: "Cancelar",
+    save: "Guardar",
+    err_unauthorized: "No tienes permiso para controlar alguno de estos dispositivos.",
+    err_invalid_slot: "Ya no se puede programar esa hora.",
+    err_not_loaded: "PVPC Planner no está cargado.",
     settings_title: "Ajustes",
     settings_devices: "Dispositivos",
     settings_groups: "Grupos",
@@ -37,7 +82,6 @@ const STRINGS = {
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Mostrar todos",
     hidden_hide_all: "Ocultar todos",
-    hidden_search: "Buscar dispositivo",
     group_help: "Un grupo enciende y apaga varios dispositivos a la vez.",
     group_new: "Nuevo grupo",
     group_empty: "Aún no hay grupos.",
@@ -50,10 +94,28 @@ const STRINGS = {
     group_confirm_delete: "¿Borrar?",
     group_need_name: "Escribe un nombre",
     group_need_devices: "Elige al menos un dispositivo",
-    group_cancel: "Cancelar",
-    group_save: "Guardar",
+    err_not_found: "Ese grupo ya no existe.",
+    err_invalid_group: "Demasiados grupos.",
   },
   gl: {
+    loading: "Cargando…",
+    missing_sensor: "Non se atopa {entity}. Revisa a integración PVPC.",
+    today: "Hoxe",
+    tomorrow: "Mañá",
+    tomorrow_pending: "Publícanse arredor das 20:30",
+    cheapest: "{n} máis baratas",
+    priciest: "{n} máis caras",
+    no_prices: "Sen prezos para este día.",
+    repeated: "(bis)",
+    turn_on: "Acender {from}–{to}",
+    search: "Buscar dispositivo",
+    no_devices: "Non hai dispositivos de acendido/apagado.",
+    clear: "Quitar todos",
+    cancel: "Cancelar",
+    save: "Gardar",
+    err_unauthorized: "Non tes permiso para controlar algún destes dispositivos.",
+    err_invalid_slot: "Xa non se pode programar esa hora.",
+    err_not_loaded: "PVPC Planner non está cargado.",
     settings_title: "Axustes",
     settings_devices: "Dispositivos",
     settings_groups: "Grupos",
@@ -62,7 +124,6 @@ const STRINGS = {
     hidden_count: "{shown} de {total} visibles",
     hidden_show_all: "Amosar todos",
     hidden_hide_all: "Ocultar todos",
-    hidden_search: "Buscar dispositivo",
     group_help: "Un grupo acende e apaga varios dispositivos á vez.",
     group_new: "Novo grupo",
     group_empty: "Aínda non hai grupos.",
@@ -75,25 +136,19 @@ const STRINGS = {
     group_confirm_delete: "Borrar?",
     group_need_name: "Escribe un nome",
     group_need_devices: "Escolle polo menos un dispositivo",
-    group_cancel: "Cancelar",
-    group_save: "Gardar",
+    err_not_found: "Ese grupo xa non existe.",
+    err_invalid_group: "Demasiados grupos.",
   },
 };
 
-function translator(lang) {
-  const table = STRINGS[lang] || STRINGS.en;
-  return (key, params = {}) =>
-    (table[key] ?? STRINGS.en[key] ?? key).replace(/\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m));
-}
+const langOf = (hass) => hass.locale?.language || hass.language || "en";
 
-const ICONS = [
-  "mdi:flash", "mdi:power-socket-eu", "mdi:water-boiler", "mdi:washing-machine", "mdi:tumble-dryer",
-  "mdi:dishwasher", "mdi:radiator", "mdi:heat-pump", "mdi:air-conditioner", "mdi:fan", "mdi:air-humidifier",
-  "mdi:lightbulb-group", "mdi:lamp", "mdi:ev-station", "mdi:car-electric", "mdi:battery-charging",
-  "mdi:water-pump", "mdi:pool", "mdi:sprinkler", "mdi:fridge", "mdi:stove", "mdi:microwave",
-  "mdi:coffee-maker", "mdi:kettle", "mdi:television", "mdi:desktop-tower", "mdi:router-wireless",
-  "mdi:robot-vacuum", "mdi:home", "mdi:sofa", "mdi:bed", "mdi:garage", "mdi:tools", "mdi:solar-power",
-];
+// Devuelve texto sin escapar: los parámetros externos se escapan al llamar.
+function translator(lang) {
+  const table = STRINGS[lang] || STRINGS[lang.split("-")[0]] || STRINGS.en;
+  return (key, params = {}) =>
+    (table[key] ?? STRINGS.en[key]).replace(/\{(\w+)\}/g, (_, k) => params[k]);
+}
 
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -298,8 +353,13 @@ class PvpcPlannerPanel extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    this._t = translator((hass.locale?.language || hass.language || "en").split("-")[0]);
-    this._$(".settings-btn span").textContent = this._t("settings_title");
+    const lang = langOf(hass);
+    if (lang !== this._lang) {
+      this._lang = lang;
+      this._t = translator(lang);
+      this._last = {};
+      this._$(".settings-btn span").textContent = this._t("settings_title");
+    }
     this._$("ha-menu-button").hass = hass;
     this._subscribe();
     this._update();
@@ -335,9 +395,14 @@ class PvpcPlannerPanel extends HTMLElement {
       { type: "pvpc_planner/subscribe" }
     );
     this._unsub.catch((err) => {
-      this._error = err.message || String(err);
+      this._error = this._errText(err);
       this._update(true);
     });
+  }
+
+  // Traduce los códigos de error del websocket; el resto se muestra tal cual.
+  _errText(err) {
+    return err.code && STRINGS.en[`err_${err.code}`] ? this._t(`err_${err.code}`) : err.message || String(err);
   }
 
   // Solo repinta si cambian precios, horario o la hora actual: hass cambia con cualquier estado.
@@ -346,6 +411,7 @@ class PvpcPlannerPanel extends HTMLElement {
     if (!hass) return;
     const stateObj = this._priceEntity && hass.states[this._priceEntity];
     const now = nowIn(hass.config.time_zone);
+    const t = this._t;
     const l = this._last;
     if (!force && l.state === stateObj && l.date === now.date && l.hour === now.hour) return;
     this._last = { state: stateObj, date: now.date, hour: now.hour };
@@ -356,9 +422,9 @@ class PvpcPlannerPanel extends HTMLElement {
       msg.textContent = text;
       grid.innerHTML = "";
     };
-    if (this._error) return fail(`Error: ${this._error}`);
-    if (!this._priceEntity) return fail("Cargando…");
-    if (!stateObj) return fail(`No se encuentra ${this._priceEntity}. Revisa la integración PVPC.`);
+    if (this._error) return fail(this._error);
+    if (!this._priceEntity) return fail(t("loading"));
+    if (!stateObj) return fail(t("missing_sensor", { entity: this._priceEntity }));
 
     const today = parsePrices(stateObj.attributes, false);
     const tomorrow = parsePrices(stateObj.attributes, true);
@@ -370,20 +436,20 @@ class PvpcPlannerPanel extends HTMLElement {
     this._date = isToday ? now.date : nextDate(now.date);
 
     this._$(".tabs").innerHTML = `
-      <button data-day="today" class="${isToday ? "on" : ""}">Hoy</button>
-      <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : 'disabled title="Se publican hacia las 20:30"'}>Mañana</button>`;
+      <button data-day="today" class="${isToday ? "on" : ""}">${t("today")}</button>
+      <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `disabled title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
     const unit = stateObj.attributes.unit_of_measurement || "€/kWh";
     this._$(".legend").innerHTML = `
-      <span><i class="dot" style="background:var(--success-color,#43a047)"></i>${TOP} más baratas</span>
-      <span><i class="dot" style="background:var(--error-color,#db4437)"></i>${TOP} más caras</span>
+      <span><i class="dot" style="background:var(--success-color,#43a047)"></i>${t("cheapest", { n: TOP })}</span>
+      <span><i class="dot" style="background:var(--error-color,#db4437)"></i>${t("priciest", { n: TOP })}</span>
       <span>${esc(unit)}</span>`;
 
-    if (!prices.length) return fail("Sin precios para este día.");
+    if (!prices.length) return fail(t("no_prices"));
     msg.textContent = "";
 
     const cls = classify(prices);
     const slots = this._schedule[this._date] || {};
-    const fmt = new Intl.NumberFormat(hass.locale?.language || hass.language, {
+    const fmt = new Intl.NumberFormat(this._lang, {
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     });
@@ -394,7 +460,7 @@ class PvpcPlannerPanel extends HTMLElement {
         const ents = slots[p.hour] || [];
         return `<div class="cell ${cls.get(p) || ""} ${past ? "past" : ""} ${current ? "now" : ""}"
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
-          <div class="h">${pad(p.hour)}:00${p.dup ? " (bis)" : ""}</div>
+          <div class="h">${pad(p.hour)}:00${p.dup ? ` ${t("repeated")}` : ""}</div>
           <div class="p">${fmt.format(p.price)}</div>
           <div class="chips">${ents.map((e) => this._chip(e)).join("")}</div>
         </div>`;
@@ -436,7 +502,7 @@ class PvpcPlannerPanel extends HTMLElement {
     try {
       return await this._hass.callWS(msg);
     } catch (e) {
-      err.textContent = e.message || String(e);
+      err.textContent = this._errText(e);
       throw e;
     }
   }
@@ -452,7 +518,7 @@ class PvpcPlannerPanel extends HTMLElement {
     const groups = Object.entries(this._groups)
       .map(([id, g]) => ({ id: GROUP + id, ...g }))
       .sort((a, b) => a.name.localeCompare(b.name));
-    const dayLabel = new Date(`${date}T12:00:00Z`).toLocaleDateString(hass.language, {
+    const dayLabel = new Date(`${date}T12:00:00Z`).toLocaleDateString(this._lang, {
       weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
     });
     const groupRow = (g) => `<label class="group" data-q="${esc(g.name.toLowerCase())}">
@@ -460,18 +526,18 @@ class PvpcPlannerPanel extends HTMLElement {
       <ha-icon icon="${esc(g.icon)}"></ha-icon><span>${esc(g.name)}<small>${g.entity_ids.length === 1 ? t("group_count_one") : t("group_count", { n: g.entity_ids.length })}</small></span></label>`;
 
     const [dlg, close] = this._showDialog(`
-      <h2>Encender ${pad(hour)}:00–${pad((hour + 1) % 24)}:00</h2>
+      <h2>${t("turn_on", { from: `${pad(hour)}:00`, to: `${pad((hour + 1) % 24)}:00` })}</h2>
       <div class="sub">${esc(dayLabel)}</div>
-      <input type="search" placeholder="${esc(t("hidden_search"))}">
+      <input type="search" placeholder="${esc(t("search"))}">
       <div class="list">${
         (groups.length ? `<div class="section">${t("settings_groups")}</div>${groups.map(groupRow).join("")}
           <div class="section">${t("settings_devices")}</div>` : "")
         + (ents.map((e) => deviceRow(e, selected.has(e.id))).join("")
-          || "<p>No hay dispositivos de encendido/apagado.</p>")
+          || `<p>${t("no_devices")}</p>`)
       }</div>
       <div class="err"></div>
-      <div class="actions"><button class="clear">Quitar todos</button><span></span>
-        <button class="cancel">Cancelar</button><button class="save">Guardar</button></div>`);
+      <div class="actions"><button class="clear">${t("clear")}</button><span></span>
+        <button class="cancel">${t("cancel")}</button><button class="save">${t("save")}</button></div>`);
 
     const boxes = () => [...dlg.querySelectorAll("input[type=checkbox]")];
     filterOnInput(dlg.querySelector("input[type=search]"), dlg);
@@ -520,7 +586,7 @@ class PvpcPlannerPanel extends HTMLElement {
     const body = dlg.querySelector(".body");
     closeFoot();
     body.innerHTML = `<p class="help">${t("hidden_help")}</p>
-      <input type="search" placeholder="${esc(t("hidden_search"))}">
+      <input type="search" placeholder="${esc(t("search"))}">
       <div class="tools"><span></span><button class="show">${t("hidden_show_all")}</button>
         <button class="hide">${t("hidden_hide_all")}</button></div>
       <div class="list">${ents.map((e) => deviceRow(e, false, "switch")).join("")}</div>`;
@@ -598,10 +664,10 @@ class PvpcPlannerPanel extends HTMLElement {
         <div class="picker"><button title="${esc(t("group_icon"))}"><ha-icon></ha-icon><ha-icon icon="mdi:menu-down"></ha-icon></button>
           <div class="icons" hidden>${ICONS.map((i) => `<button data-icon="${i}" title="${i.slice(4)}"><ha-icon icon="${i}"></ha-icon></button>`).join("")}</div></div>
       </div>
-      <input type="search" placeholder="${esc(t("hidden_search"))}">
+      <input type="search" placeholder="${esc(t("search"))}">
       <div class="list">${devicesOf(this._hass).map((e) => deviceRow(e, selected.has(e.id))).join("")}</div>`;
-    const foot = ui.foot(`<button class="back">${t("group_cancel")}</button>
-      <button class="save">${t("group_save")}</button>`);
+    const foot = ui.foot(`<button class="back">${t("cancel")}</button>
+      <button class="save">${t("save")}</button>`);
     const grid = body.querySelector(".icons");
     const setIcon = (i) => {
       icon = i;

@@ -17,6 +17,7 @@ Panel para Home Assistant que muestra los precios PVPC por horas y enciende tus 
 - Marca en **verde** las 6 horas más baratas del día y en **rojo** las 6 más caras. Los periodos punta, llano y valle no se tienen en cuenta.
 - Al pulsar una hora eliges qué dispositivos deben estar **encendidos** durante esa hora.
 - La programación es para una fecha concreta y no se repite.
+- Interfaz en español, gallego e inglés según el idioma del usuario en Home Assistant (inglés por defecto).
 
 ## Requisitos
 

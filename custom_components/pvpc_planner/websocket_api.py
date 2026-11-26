@@ -30,7 +30,7 @@ ICON = vol.Match(r"^mdi:[a-z0-9]+(-[a-z0-9]+)*$")
 def _allowed_entity_id(value: Any) -> str:
     entity_id = cv.entity_id(value)
     if cv.split_entity_id(entity_id)[0] not in ALLOWED_DOMAINS:
-        raise vol.Invalid(f"Dominio no permitido: {entity_id}")
+        raise vol.Invalid(f"Domain not allowed: {entity_id}")
     return entity_id
 
 
@@ -56,7 +56,7 @@ def _planner(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg_id: int
 ) -> Planner | None:
     if (planner := hass.data.get(DOMAIN)) is None:
-        connection.send_error(msg_id, "not_loaded", "PVPC Planner no está cargado")
+        connection.send_error(msg_id, "not_loaded", "PVPC Planner is not loaded")
     return planner
 
 
@@ -113,7 +113,7 @@ async def ws_set(
         if t.startswith(GROUP_PREFIX)
         and planner.group(t.removeprefix(GROUP_PREFIX)) is None
     ]:
-        connection.send_error(msg["id"], "not_found", f"Grupos inexistentes: {missing}")
+        connection.send_error(msg["id"], "not_found", f"Unknown groups: {missing}")
         return
     # Añadir o quitar una entidad (o grupo) exige poder controlar sus entidades.
     changed = set(targets) ^ set(planner.slot(msg["date"], msg["hour"]))
@@ -145,7 +145,7 @@ async def ws_group_save(
     old: list[str] = []
     if group_id is not None:
         if (group := planner.group(group_id)) is None:
-            connection.send_error(msg["id"], "not_found", "Grupo inexistente")
+            connection.send_error(msg["id"], "not_found", "Unknown group")
             return
         old = group["entity_ids"]
     # Cambiar un grupo cambia las horas que lo usan.
@@ -170,7 +170,7 @@ async def ws_group_delete(
     if (planner := _planner(hass, connection, msg["id"])) is None:
         return
     if (group := planner.group(msg["group_id"])) is None:
-        connection.send_error(msg["id"], "not_found", "Grupo inexistente")
+        connection.send_error(msg["id"], "not_found", "Unknown group")
         return
     _check_control(connection, group["entity_ids"])
     await planner.async_delete_group(msg["group_id"])
