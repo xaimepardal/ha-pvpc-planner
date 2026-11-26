@@ -583,8 +583,8 @@ class PvpcPlannerPanel extends HTMLElement {
       <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `disabled title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
     const unit = stateObj.attributes.unit_of_measurement || "€/kWh";
     this._$(".legend").innerHTML = `
-      <span><i class="dot" style="background:var(--success-color,#43a047)"></i>${t("cheapest", { n: TOP })}</span>
-      <span><i class="dot" style="background:var(--error-color,#db4437)"></i>${t("priciest", { n: TOP })}</span>
+      <span title="${t("cheapest", { n: TOP })}"><i class="dot" style="background:var(--success-color,#43a047)"></i>$</span>
+      <span title="${t("priciest", { n: TOP })}"><i class="dot" style="background:var(--error-color,#db4437)"></i>$$$</span>
       <span>${esc(unit)}</span>`;
 
     if (!prices.length) return fail(t("no_prices"));
