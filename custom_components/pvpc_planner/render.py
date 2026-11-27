@@ -180,9 +180,9 @@ class _Painter:
         self.draw.text((x, y0 + 4), f"{cell.hour:02d}:00", ink, _font(38, True))
         price = f"{cell.price:.4f}".replace(".", self.t["decimal"])
         font = _font(24, True)
-        self.draw.text((x, y0 + 44), price, ink, font)
-        if cell.level:
-            icon, color = LEVELS[cell.level]
+        icon, color = LEVELS.get(cell.level, (None, ink))
+        self.draw.text((x, y0 + 44), price, color, font)
+        if icon:
             xy = (x + font.getlength(price) + 3, y0 + 41)
             self.icon(icon, "", xy, 30, color, bold=True)
         if cell.auto:
