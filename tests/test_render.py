@@ -11,14 +11,10 @@ import pytest
 
 from custom_components.pvpc_planner import mdi, render
 from custom_components.pvpc_planner.render import (
-    COLUMNS,
-    HEADER,
-    HEIGHT,
-    PAD,
-    WIDTH,
     Cell,
     Device,
     Table,
+    layout,
     render_png,
     texts,
 )
@@ -30,7 +26,7 @@ DEVICES = {1: (CAR,), 2: (CAR, ODD), 3: (CAR, CAR, CAR, ODD), 20: (ODD,), 21: (L
 LEVELS = {0: "cheap", 1: "cheap", 20: "expensive", 21: "expensive"}
 
 
-def _table(lang: str = "es", hours: int = 24) -> Table:
+def _table(lang: str = "es", hours: int = 24, size=(800, 480)) -> Table:
     cells = tuple(
         Cell(
             hour=h % 24,
@@ -43,22 +39,18 @@ def _table(lang: str = "es", hours: int = 24) -> Table:
         )
         for h in range(hours)
     )
-    return Table(date(2026, 11, 26), True, lang, cells)
+    return Table(date(2026, 11, 26), True, lang, cells, *size)
 
 
-def _open(png: bytes) -> Image.Image:
+def _open(png: bytes, size=(800, 480)) -> Image.Image:
     img = Image.open(BytesIO(png))
-    assert img.size == (WIDTH, HEIGHT)
+    assert img.size == size
     assert img.mode == "P"
     return img
 
 
-def _box(index: int, rows: int = 4) -> tuple[int, int, int, int]:
-    w = (WIDTH - PAD * (COLUMNS + 1)) / COLUMNS
-    h = (HEIGHT - HEADER - PAD * (rows + 1)) / rows
-    row, col = divmod(index, COLUMNS)
-    x, y = PAD + col * (w + PAD), HEADER + PAD + row * (h + PAD)
-    return round(x), round(y), round(x + w), round(y + h)
+def _box(index: int) -> tuple[int, int, int, int]:
+    return layout(800, 480, 24)[1][index]
 
 
 @pytest.mark.parametrize("lang", ["es", "en", "gl", "en-GB", "fr"])
@@ -101,7 +93,19 @@ def test_render_variants() -> None:
     # Día de 25 horas: una fila más.
     _open(render_png(_table(hours=25)))
     # Sin precios.
-    _open(render_png(Table(date(2026, 11, 27), False, "gl", ())))
+    _open(render_png(Table(date(2026, 11, 27), False, "gl", (), 800, 480)))
+
+
+@pytest.mark.parametrize(
+    ("size", "cols"),
+    [((800, 480), 6), ((480, 800), 4), ((296, 128), 8), ((100, 100), 5)],
+)
+def test_sizes(size: tuple[int, int], cols: int) -> None:
+    _open(render_png(_table(size=size)), size)
+    header, boxes = layout(*size, 24)
+    assert len({b[0] for b in boxes}) == cols
+    width, height = size
+    assert all(b[1] >= header and b[2] <= width and b[3] <= height for b in boxes)
 
 
 def test_fit() -> None:

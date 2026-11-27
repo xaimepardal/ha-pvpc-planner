@@ -39,6 +39,14 @@ DOMAIN_ICONS = {
 }
 GROUP_ICON = "mdi:devices"
 
+# Tamaño de las imágenes (opciones de la entrada).
+CONF_WIDTH = "width"
+CONF_HEIGHT = "height"
+DEFAULT_WIDTH = 800
+DEFAULT_HEIGHT = 480
+MIN_SIZE = 100
+MAX_SIZE = 2000
+
 # Publicación MQTT de las imágenes (opciones de la entrada).
 CONF_TLS = "tls"
 CONF_CA_CERT = "ca_cert"
@@ -48,6 +56,6 @@ CONF_INTERVAL = "interval"
 CONF_ACTIVE_FROM = "active_from"
 CONF_ACTIVE_TO = "active_to"
 DEFAULT_MQTT_PORT = 8883
-DEFAULT_TOPIC_TODAY = "reterminal/imagen/1"
-DEFAULT_TOPIC_TOMORROW = "reterminal/imagen/2"
+DEFAULT_TOPIC_TODAY = "pvpc_planner/image/today"
+DEFAULT_TOPIC_TOMORROW = "pvpc_planner/image/tomorrow"
 DEFAULT_INTERVAL = 60

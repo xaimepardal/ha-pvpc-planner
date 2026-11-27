@@ -102,36 +102,38 @@ Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolea
 
 ### Imagen para pantallas
 
-Las entidades `image.pvpc_planner_today` y `image.pvpc_planner_tomorrow` dan la tabla del día como PNG de 800x480 (unos 20 KB), pensada para pantallas e-ink o ESPHome. Las horas caras van rayadas y las baratas con borde punteado, así que se entiende igual pasada a blanco y negro. Se regenera solo cuando cambian los precios, la programación o la hora en curso.
+Las entidades `image.pvpc_planner_today` y `image.pvpc_planner_tomorrow` dan la tabla del día como PNG, pensada para pantallas e-ink o ESPHome. El precio va en verde con una flecha hacia abajo en las horas baratas y en rojo con una flecha hacia arriba en las caras, así que se lee igual en blanco y negro. Se regenera solo cuando cambian los precios, la programación o la hora en curso.
 
 <p align="center">
   <img src="docs/pantalla.png" width="400" alt="Imagen de 800x480 con la tabla de hoy">
   <img src="docs/pantalla-1bit.png" width="400" alt="La misma imagen pasada a 1 bit">
 </p>
 
-Se descarga de `/api/image_proxy/image.pvpc_planner_today` con un token de larga duración en la cabecera `Authorization: Bearer …`. Por ejemplo, con `online_image` de ESPHome:
+El tamaño se cambia en **Ajustes → Dispositivos y servicios → PVPC Planner → Configurar** (de 100 a 2000 px; por defecto 800x480). La rejilla se adapta a horizontal o vertical.
+
+Se descarga de `/api/image_proxy/image.pvpc_planner_today` con un token de larga duración, que se crea en **Perfil → Seguridad → Tokens de acceso de larga duración**. Conviene crearlo con un usuario sin permisos de administrador dedicado a la pantalla. Se envía en la cabecera `Authorization: Bearer <token>`. Por ejemplo, con `online_image` de ESPHome (`<ha>` es la dirección de tu Home Assistant):
 
 ```yaml
 online_image:
   - id: pvpc
-    url: http://homeassistant.local:8123/api/image_proxy/image.pvpc_planner_today
+    url: http://<ha>:8123/api/image_proxy/image.pvpc_planner_today
     format: PNG
     type: BINARY  # o RGB565 en pantallas de color
     request_headers:
-      Authorization: !secret ha_bearer
+      Authorization: !secret ha_bearer  # "Bearer <token>"
 ```
 
 ### Publicación por MQTT
 
-En **Ajustes → Dispositivos y servicios → PVPC Planner → Configurar** se puede publicar la imagen de hoy y la de mañana en un broker MQTT propio, independiente de la integración MQTT de Home Assistant. Por defecto no se publica nada: hace falta poner el servidor. Al guardar se comprueba la conexión.
+En la misma pantalla de **Configurar** se puede publicar la imagen de hoy y la de mañana en blanco y negro en un broker MQTT propio, para cualquier pantalla ePaper. Es independiente de la integración MQTT de Home Assistant. Por defecto no se publica nada: hace falta poner el servidor. Al guardar se comprueba la conexión.
 
 - Servidor, puerto (8883) y TLS (activado). La CA es opcional: si la pones, solo se confía en ella.
 - Usuario y contraseña. La contraseña no se vuelve a mostrar; si la dejas vacía, se mantiene la guardada.
-- Topics `reterminal/imagen/1` (hoy) y `reterminal/imagen/2` (mañana). Si un topic está vacío, esa imagen no se publica.
+- Topics `pvpc_planner/image/today` y `pvpc_planner/image/tomorrow`. Si un topic está vacío, esa imagen no se publica.
 - Intervalo: cada cuántos minutos se mira si la imagen ha cambiado. Con 60 se publica justo al cambiar la hora.
 - Franja activa opcional (desde/hasta, puede cruzar la medianoche): fuera de ella no se publica.
 
-El formato es el del firmware epaper-home del reTerminal E1001: bitmap de 800x480 a 1 bpp (umbral 128, sin tramado, MSB = píxel izquierdo, 1 = blanco) comprimido con zlib. Se publica con QoS 1 y retenido, así que en el broker queda solo la última imagen de cada topic. Solo se envía cuando cambia, también tras reiniciar Home Assistant. Tras un corte de conexión no se reenvía nada pendiente: solo el estado actual.
+Formato: bitmap del tamaño configurado a 1 bpp (umbral 128, sin tramado, por filas, MSB = píxel izquierdo, 1 = blanco) comprimido con zlib. Se publica con QoS 1 y retenido, así que en el broker queda solo la última imagen de cada topic. Solo se envía cuando cambia, también tras reiniciar Home Assistant. Tras un corte de conexión no se reenvía nada pendiente: solo el estado actual.
 
 ## Desarrollo
 

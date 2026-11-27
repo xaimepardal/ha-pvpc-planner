@@ -27,9 +27,11 @@
   "options": {
     "step": {
       "init": {
-        "title": "Publicar por MQTT",
-        "description": "Envía las imágenes de hoy y de mañana a un broker MQTT para pantallas e-paper (reTerminal E1001 con epaper-home). Solo se publica cuando cambian. Deja el servidor vacío para no publicar.",
+        "title": "Imágenes y MQTT",
+        "description": "Tamaño de las imágenes de hoy y de mañana. Opcionalmente, se envían a un broker MQTT en blanco y negro para cualquier pantalla ePaper, solo cuando cambian. Deja el servidor vacío para no publicar.",
         "data": {
+          "width": "Ancho",
+          "height": "Alto",
           "host": "Servidor",
           "port": "Puerto",
           "tls": "TLS",
@@ -43,6 +45,7 @@
           "active_to": "Activo hasta"
         },
         "data_description": {
+          "width": "Tamaño de tu pantalla, de 100 a 2000 px. La tabla se reorganiza en horizontal o vertical.",
           "ca_cert": "Vacío: las CA del sistema.",
           "password": "Vacío: se mantiene la guardada.",
           "topic_today": "Vacío: no se publica.",

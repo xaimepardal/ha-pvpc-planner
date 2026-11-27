@@ -1,7 +1,7 @@
 """Publicación de las imágenes por MQTT para pantallas e-paper.
 
-Formato del firmware epaper-home (reTerminal E1001): bitmap de 800x480 a 1 bpp
-por umbral, por filas, MSB = píxel izquierdo y 1 = blanco, comprimido con zlib 9.
+Bitmap del tamaño de las opciones a 1 bpp por umbral (128, sin tramado), por filas,
+MSB = píxel izquierdo y 1 = blanco, comprimido con zlib 9.
 Retenido y QoS 1: en el broker queda solo la última imagen de cada topic.
 
 Cada publicación repinta la pantalla, así que solo se envía lo que cambia. Cada
@@ -51,7 +51,7 @@ from .const import (
     DEFAULT_MQTT_PORT,
     DOMAIN,
 )
-from .image import build_table
+from .image import build_table, image_size
 from .planner import Planner
 from .render import Table, render
 
@@ -185,6 +185,7 @@ class Publisher:
             )
             if (topic := options.get(key))
         }
+        self._size = image_size(options)
         self._interval = int(options.get(CONF_INTERVAL, DEFAULT_INTERVAL))
         self._window = tuple(
             time.fromisoformat(v) if (v := options.get(k)) else None
@@ -327,7 +328,7 @@ class Publisher:
                 return
             changed = False
             for tomorrow, topic in self._topics.items():
-                table = build_table(self.hass, self._planner, tomorrow)
+                table = build_table(self.hass, self._planner, tomorrow, self._size)
                 if self._tables.get(tomorrow) == table:
                     continue
                 data = await self.hass.async_add_executor_job(render_payload, table)

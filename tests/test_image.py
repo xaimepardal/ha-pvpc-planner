@@ -97,6 +97,16 @@ async def test_cache_and_refresh(hass, hass_client, freezer) -> None:
 
 
 @pytest.mark.freeze_time(NOW)
+async def test_size_from_options(hass, hass_client) -> None:
+    hass.states.async_set("sensor.pvpc", "0.2", _prices())
+    entry = await async_setup_integration(hass)
+    client = await hass_client()
+    hass.config_entries.async_update_entry(entry, options={"width": 480, "height": 800})
+    await hass.async_block_till_done()
+    assert (await _png(client, IMAGES[0])).size == (480, 800)
+
+
+@pytest.mark.freeze_time(NOW)
 async def test_stale_render_not_cached(hass) -> None:
     hass.states.async_set("sensor.pvpc", "0.2", _prices())
     await async_setup_integration(hass)
