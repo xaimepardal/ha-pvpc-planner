@@ -105,8 +105,6 @@ def test_payload_matches_legacy(cells: int) -> None:
         day=date(2026, 11, 25),
         today=True,
         lang="es",
-        unit="€/kWh",
-        templates=False,
         cells=tuple(
             Cell(h, 0.1 + h / 100, None, h < 10, h == 10, False, ())
             for h in range(cells)

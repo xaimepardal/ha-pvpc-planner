@@ -11,7 +11,7 @@ from typing import Any
 
 from homeassistant.components.image import ImageEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_FRIENDLY_NAME, ATTR_ICON, ATTR_UNIT_OF_MEASUREMENT
+from homeassistant.const import ATTR_FRIENDLY_NAME, ATTR_ICON
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -33,8 +33,6 @@ from .const import (
 from .planner import Planner
 from .render import Cell, Device, Table, render_png
 from .rules import Price
-
-DEFAULT_UNIT = "€/kWh"
 
 
 async def async_setup_entry(
@@ -94,14 +92,10 @@ def build_table(hass: HomeAssistant, planner: Planner, tomorrow: bool) -> Table:
                 devices=tuple(_device(hass, planner, t) for t in targets),
             )
         )
-    state = hass.states.get(planner.price_entity)
-    unit = state and state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
     return Table(
         day=day,
         today=not tomorrow,
         lang=hass.config.language,
-        unit=unit or DEFAULT_UNIT,
-        templates=planner.has_templates,
         cells=tuple(cells),
     )
 
