@@ -52,4 +52,4 @@ jobs:
       - name: Versión del manifest igual al tag
         run: |
           manifest=$(jq -r .version custom_components/pvpc_planner/manifest.json)
-          [ "v$manifest" = "$GITHUB_REF_NAME" ] || { echo "::error::manifest $manifest ≠ tag $GITHUB_REF_NAME"; exit 1; }
+          [ "v$manifest" = "$GITHUB_REF_NAME" ] || { echo "::error::manifest.version \"$manifest\" debe ser \"${GITHUB_REF_NAME#v}\" (tag $GITHUB_REF_NAME)"; exit 1; }

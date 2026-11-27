@@ -2,6 +2,7 @@
   "domain": "pvpc_planner",
   "name": "PVPC Planner",
   "after_dependencies": ["pvpc_hourly_pricing"],
+  "categories": ["energy.energy_prices"],
   "codeowners": ["@xaimepardal"],
   "config_flow": true,
   "dependencies": ["frontend", "http", "panel_custom", "websocket_api"],
@@ -10,5 +11,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/xaimepardal/ha-pvpc-planner/issues",
   "requirements": ["paho-mqtt>=2.1.0"],
-  "version": "v1.0.0"
+  "version": "1.0.0"
 }
