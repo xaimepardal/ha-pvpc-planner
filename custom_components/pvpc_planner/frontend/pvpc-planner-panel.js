@@ -43,6 +43,7 @@ const STRINGS = {
     today: "Today",
     tomorrow: "Tomorrow",
     tomorrow_pending: "Published around 20:30",
+    tomorrow_none: "PVPC prices for tomorrow have not been published yet.",
     cheapest: "{n} cheapest",
     priciest: "{n} most expensive",
     no_prices: "No prices for this day.",
@@ -118,6 +119,7 @@ const STRINGS = {
     today: "Hoy",
     tomorrow: "Mañana",
     tomorrow_pending: "Se publican hacia las 20:30",
+    tomorrow_none: "Todavía no hay precios PVPC publicados para mañana.",
     cheapest: "{n} más baratas",
     priciest: "{n} más caras",
     no_prices: "Sin precios para este día.",
@@ -193,6 +195,7 @@ const STRINGS = {
     today: "Hoxe",
     tomorrow: "Mañá",
     tomorrow_pending: "Publícanse arredor das 20:30",
+    tomorrow_none: "Aínda non hai prezos PVPC publicados para mañá.",
     cheapest: "{n} máis baratas",
     priciest: "{n} máis caras",
     no_prices: "Sen prezos para este día.",
@@ -465,7 +468,7 @@ const STYLE = `
 .tabs button { padding: 8px 18px; border-radius: 18px; border: 1px solid var(--divider-color); background: var(--card-background-color);
   color: inherit; font: inherit; cursor: pointer; }
 .tabs button.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
-.tabs button:disabled { opacity: .45; cursor: default; }
+.tabs button[aria-disabled="true"] { opacity: .45; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--secondary-text-color); }
 .dot { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
 .dot.cheap { border-width: 2px; }
@@ -608,10 +611,10 @@ class PvpcPlannerPanel extends HTMLElement {
 
     this._$(".tabs").addEventListener("click", (e) => {
       const b = e.target.closest("button[data-day]");
-      if (b && !b.disabled) {
-        this._day = b.dataset.day;
-        this._update(true);
-      }
+      if (!b) return;
+      if (b.getAttribute("aria-disabled") === "true") return this._openNoTomorrow();
+      this._day = b.dataset.day;
+      this._update(true);
     });
     const open = (e) => {
       const c = e.target.closest(".cell");
@@ -743,7 +746,7 @@ class PvpcPlannerPanel extends HTMLElement {
 
     this._$(".tabs").innerHTML = `
       <button data-day="today" class="${isToday ? "on" : ""}">${t("today")}</button>
-      <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `disabled title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
+      <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `aria-disabled="true" title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
     const unit = stateObj.attributes.unit_of_measurement || "€/kWh";
     this._$(".legend").innerHTML = `
       <span title="${t("cheapest", { n: TOP })}"><i class="dot cheap"></i>$</span>
@@ -829,6 +832,15 @@ class PvpcPlannerPanel extends HTMLElement {
       err.textContent = this._errText(e);
       throw e;
     }
+  }
+
+  _openNoTomorrow() {
+    const t = this._t;
+    const [dlg, close] = this._showDialog(`
+      <h2>${t("tomorrow")}</h2>
+      <p>${t("tomorrow_none")} ${t("tomorrow_pending")}.</p>
+      <div class="actions"><span></span><button class="cancel">${t("settings_close")}</button></div>`);
+    dlg.querySelector(".cancel").onclick = close;
   }
 
   _openDialog(hour) {
