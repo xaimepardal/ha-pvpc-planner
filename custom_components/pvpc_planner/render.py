@@ -1,7 +1,7 @@
 """Tabla del día como PNG de 800x480 para pantallas (e-ink, ESPHome).
 
-Las horas caras van rayadas y las baratas con borde punteado, con colores que
-se separan bien del blanco: la imagen se sigue entendiendo pasada a 1 bit.
+Fondo blanco, celdas con recuadro negro y una flecha de tendencia junto al
+precio en las horas caras y baratas: se lee igual pasada a 1 bit (umbral 128).
 Bloqueante (Pillow y disco): llamar desde el executor.
 """
 
@@ -14,7 +14,7 @@ from io import BytesIO
 import math
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from .mdi import icon_mask
 
@@ -25,21 +25,19 @@ PAD = 6
 MAX_ICONS = 3
 ROBOT = "mdi:robot"
 
-# Tema claro del panel, oscureciendo lo que debe quedar negro a 1 bit
-# (luminancia < 128) y aclarando los fondos (> 200).
-INK = (33, 33, 33)
+# Todo lo que no es fondo queda negro a 1 bit (luminancia < 128).
+INK = (0, 0, 0)
 PAST = (117, 117, 117)
-LINE = (189, 189, 189)
-PAPER = (250, 250, 250)
-CARD = (255, 255, 255)
+PAPER = (255, 255, 255)
 PRIMARY = (1, 87, 155)
-WHITE = (255, 255, 255)
-# Nivel: (marca, fondo).
+# Nivel: (icono, color).
 LEVELS = {
-    "cheap": ((46, 125, 50), (234, 246, 235)),
-    "expensive": ((211, 47, 47), (253, 236, 234)),
+    "cheap": ("mdi:trending-down", (46, 125, 50)),
+    "expensive": ("mdi:trending-up", (211, 47, 47)),
 }
-RADIUS = 10
+RADIUS = 6
+BORDER = 2
+NOW_BORDER = 5
 PALETTE_COLORS = 32
 
 TEXTS = {
@@ -47,27 +45,24 @@ TEXTS = {
         "today": "Today",
         "tomorrow": "Tomorrow",
         "no_prices": "No prices for this day.",
-        "auto": "By template",
-        "date": "{weekday} {month}/{day}",
-        "weekdays": "Mon Tue Wed Thu Fri Sat Sun",
+        "title": "{label}, {weekday} {day}",
+        "weekdays": "Monday Tuesday Wednesday Thursday Friday Saturday Sunday",
         "decimal": ".",
     },
     "es": {
         "today": "Hoy",
         "tomorrow": "Mañana",
         "no_prices": "Sin precios para este día.",
-        "auto": "Por plantilla",
-        "date": "{weekday} {day}/{month}",
-        "weekdays": "lun mar mié jue vie sáb dom",
+        "title": "{label}, {weekday} {day}",
+        "weekdays": "lunes martes miércoles jueves viernes sábado domingo",
         "decimal": ",",
     },
     "gl": {
         "today": "Hoxe",
         "tomorrow": "Mañá",
         "no_prices": "Sen prezos para este día.",
-        "auto": "Por modelo",
-        "date": "{weekday} {day}/{month}",
-        "weekdays": "lun mar mér xov ven sáb dom",
+        "title": "{label}, {weekday} {day}",
+        "weekdays": "luns martes mércores xoves venres sábado domingo",
         "decimal": ",",
     },
 }
@@ -98,8 +93,6 @@ class Table:
     day: date
     today: bool
     lang: str
-    unit: str
-    templates: bool
     cells: tuple[Cell, ...]
 
 
@@ -153,7 +146,8 @@ class _Painter:
         self.draw = ImageDraw.Draw(self.img)
 
     def paint(self) -> Image.Image:
-        self.header()
+        title = _font(26, True)
+        self.draw.text((WIDTH / 2, HEADER / 2), self.title(), INK, title, "mm")
         cells = self.table.cells
         if not cells:
             center = (WIDTH / 2, (HEIGHT + HEADER) / 2)
@@ -171,146 +165,69 @@ class _Painter:
 
     def title(self) -> str:
         day = self.table.day
-        date_text = self.t["date"].format(
+        return self.t["title"].format(
+            label=self.t["today" if self.table.today else "tomorrow"],
             weekday=self.t["weekdays"].split()[day.weekday()],
             day=day.day,
-            month=day.month,
         )
-        return f"{self.t['today' if self.table.today else 'tomorrow']} · {date_text}"
-
-    def header(self) -> None:
-        self.draw.rectangle((0, 0, WIDTH, HEADER), PRIMARY)
-        y = HEADER / 2
-        self.draw.text((PAD + 4, y), self.title(), WHITE, _font(20, True), "lm")
-        # Leyenda, de derecha a izquierda.
-        font = _font(15)
-        items: list[tuple[str, str | None]] = [
-            ("$", "cheap"),
-            ("$$$", "expensive"),
-            (self.t["auto"], ROBOT),
-            (self.table.unit, None),
-        ]
-        if not self.table.templates:
-            del items[2]
-        x = WIDTH - PAD - 4
-        for label, mark in reversed(items):
-            x -= font.getlength(label)
-            self.draw.text((x, y), label, WHITE, font, "lm")
-            if mark == ROBOT:
-                x -= 22
-                self.icon(ROBOT, "", (x, y - 9), 18, WHITE, PRIMARY)
-            elif mark:
-                x -= 24
-                self.marker((round(x), round(y) - 9, round(x) + 18, round(y) + 9), mark)
-            x -= 16
-
-    def marker(self, box: Box, level: str) -> None:
-        """Muestra de la leyenda: mismo marcado que las celdas."""
-        accent, tint = LEVELS[level]
-        self.draw.rectangle(box, tint)
-        if level == "expensive":
-            self.stripes(box, accent)
-            self.draw.rectangle(box, outline=accent, width=2)
-        else:
-            self.dots(box, accent, 0, 3, 5)
 
     def cell(self, cell: Cell, box: Box) -> None:
-        bg = CARD
-        if cell.level:
-            accent, bg = LEVELS[cell.level]
-            self.draw.rounded_rectangle(box, RADIUS, bg)
-            if cell.level == "expensive":
-                self.stripes(box, accent)
-                self.draw.rounded_rectangle(box, RADIUS, outline=accent, width=2)
-            else:
-                self.dots(box, accent, RADIUS)
-        else:
-            self.draw.rounded_rectangle(box, RADIUS, CARD, LINE)
-        if cell.now:
-            self.draw.rounded_rectangle(box, RADIUS, outline=PRIMARY, width=4)
-
-        # Sobre las rayas, el texto y los iconos llevan una placa del color de fondo.
-        plate = bg if cell.level == "expensive" else None
+        width = NOW_BORDER if cell.now else BORDER
+        self.draw.rounded_rectangle(box, RADIUS, PAPER, INK, width)
         ink = PAST if cell.past else INK
-        x0, y0, x1, _y1 = box
-        self.text((x0 + 9, y0 + 7), f"{cell.hour:02d}:00", _font(19, True), ink, plate)
+        x0, y0, x1, y1 = box
+        x = x0 + 10
+        self.draw.text((x, y0 + 4), f"{cell.hour:02d}:00", ink, _font(38, True))
         price = f"{cell.price:.4f}".replace(".", self.t["decimal"])
-        self.text((x0 + 9, y0 + 30), price, _font(29, True), ink, plate)
+        font = _font(24, True)
+        self.draw.text((x, y0 + 44), price, ink, font)
+        if cell.level:
+            icon, color = LEVELS[cell.level]
+            xy = (x + font.getlength(price) + 3, y0 + 41)
+            self.icon(icon, "", xy, 30, color, bold=True)
         if cell.auto:
-            self.icon(ROBOT, "", (x1 - 25, y0 + 7), 18, ink, plate)
+            self.icon(ROBOT, "", (x1 - 30, y1 - 29), 22, ink)
         if cell.devices:
-            self.devices(cell.devices, box, PAST if cell.past else PRIMARY, ink, plate)
-
-    def stripes(self, box: Box, color: Color) -> None:
-        x0, y0, x1, y1 = box
-        w, h = x1 - x0 + 1, y1 - y0 + 1
-        mask = Image.new("1", (w, h))
-        draw = ImageDraw.Draw(mask)
-        for k in range(-h, w, 10):
-            draw.line((k, h, k + h, 0), 1, 3)
-        # Recorte a las esquinas redondeadas.
-        clip = Image.new("1", (w, h))
-        ImageDraw.Draw(clip).rounded_rectangle((0, 0, w - 1, h - 1), RADIUS, 1)
-        self.img.paste(color, (x0, y0), ImageChops.logical_and(mask, clip))
-
-    def dots(
-        self, box: Box, color: Color, radius: int, dot: int = 4, step: int = 8
-    ) -> None:
-        x0, y0, x1, y1 = box
-        for x in range(x0 + radius, x1 - radius - dot + 2, step):
-            self.draw.rectangle((x, y0, x + dot - 1, y0 + dot - 1), color)
-            self.draw.rectangle((x, y1 - dot + 1, x + dot - 1, y1), color)
-        for y in range(y0 + radius, y1 - radius - dot + 2, step):
-            self.draw.rectangle((x0, y, x0 + dot - 1, y + dot - 1), color)
-            self.draw.rectangle((x1 - dot + 1, y, x1, y + dot - 1), color)
-
-    def text(
-        self, xy, text: str, font, fill: Color, plate: Color | None, anchor="la"
-    ) -> None:
-        if plate:
-            x0, y0, x1, y1 = self.draw.textbbox(xy, text, font, anchor)
-            self.draw.rectangle((x0 - 3, y0 - 3, x1 + 3, y1 + 3), plate)
-        self.draw.text(xy, text, fill, font, anchor)
+            fill = PAST if cell.past else PRIMARY
+            self.devices(cell.devices, box, fill, ink, reserve=32 if cell.auto else 0)
 
     def icon(
-        self, icon: str, name: str, xy, size: int, fill: Color, plate: Color | None
+        self, icon: str, name: str, xy, size: int, fill: Color, bold: bool = False
     ) -> None:
-        """Icono MDI o, si no se encuentra, la inicial del nombre en un círculo."""
+        """Icono MDI o, si no se encuentra, la inicial del nombre en un círculo.
+
+        `bold` engrosa el trazo para que no se pierda en e-ink.
+        """
         x, y = round(xy[0]), round(xy[1])
-        area = (x, y, x + size, y + size)
         if (mask := icon_mask(icon, size)) is not None:
-            if plate:
-                self.img.paste(plate, area, mask.filter(ImageFilter.MaxFilter(7)))
-            self.img.paste(fill, area, mask)
+            if bold:
+                mask = mask.filter(ImageFilter.MaxFilter(3))
+            self.img.paste(fill, (x, y, x + size, y + size), mask)
             return
         circle = (x + 1, y + 1, x + size - 2, y + size - 2)
-        self.draw.ellipse(circle, plate, fill, 2)
+        self.draw.ellipse(circle, None, fill, 2)
         initial = (name[:1] or "?").upper()
         font = _font(round(size * 0.55), True)
         self.draw.text((x + size / 2, y + size / 2), initial, fill, font, "mm")
 
     def devices(
-        self,
-        items: tuple[Device, ...],
-        box: Box,
-        fill: Color,
-        ink: Color,
-        plate: Color | None,
+        self, items: tuple[Device, ...], box: Box, fill: Color, ink: Color, reserve: int
     ) -> None:
         """Uno: icono y nombre. Varios: iconos, y desde MAX_ICONS el resto como "+N"."""
         x0, _, x1, y1 = box
-        size = 26
-        x, y = x0 + 9, y1 - size - 8
+        size = 22
+        x, y = x0 + 10, y1 - size - 7
         if len(items) == 1:
             dev = items[0]
-            self.icon(dev.icon, dev.name, (x, y), size, fill, plate)
+            self.icon(dev.icon, dev.name, (x, y), size, fill)
             font = _font(15)
-            name = _fit(dev.name, font, x1 - x - size - 16)
-            self.text((x + size + 6, y + size / 2), name, font, ink, plate, "lm")
+            # `reserve`: hueco para el robot de la esquina.
+            name = _fit(dev.name, font, x1 - x - size - 14 - reserve)
+            self.draw.text((x + size + 5, y + size / 2), name, ink, font, "lm")
             return
         shown = items[: MAX_ICONS - 1] if len(items) > MAX_ICONS else items
         for dev in shown:
-            self.icon(dev.icon, dev.name, (x, y), size, fill, plate)
-            x += size + 6
+            self.icon(dev.icon, dev.name, (x, y), size, fill)
+            x += size + 4
         if rest := len(items) - len(shown):
-            self.text((x, y + size / 2), f"+{rest}", _font(17, True), ink, plate, "lm")
+            self.draw.text((x, y + size / 2), f"+{rest}", ink, _font(17, True), "lm")

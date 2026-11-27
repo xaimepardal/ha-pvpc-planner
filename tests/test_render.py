@@ -2,7 +2,6 @@
 
 from datetime import date
 from io import BytesIO
-import itertools
 import math
 import sys
 from unittest.mock import patch
@@ -31,7 +30,7 @@ DEVICES = {1: (CAR,), 2: (CAR, ODD), 3: (CAR, CAR, CAR, ODD), 20: (ODD,), 21: (L
 LEVELS = {0: "cheap", 1: "cheap", 20: "expensive", 21: "expensive"}
 
 
-def _table(lang: str = "es", hours: int = 24, templates: bool = True) -> Table:
+def _table(lang: str = "es", hours: int = 24) -> Table:
     cells = tuple(
         Cell(
             hour=h % 24,
@@ -44,7 +43,7 @@ def _table(lang: str = "es", hours: int = 24, templates: bool = True) -> Table:
         )
         for h in range(hours)
     )
-    return Table(date(2026, 11, 26), True, lang, "€/kWh", templates, cells)
+    return Table(date(2026, 11, 26), True, lang, cells)
 
 
 def _open(png: bytes) -> Image.Image:
@@ -73,42 +72,36 @@ def test_texts_fallback() -> None:
     assert texts("gl")["today"] == "Hoxe"
 
 
-def test_marks_survive_one_bit() -> None:
-    """Rayas y punteado siguen ahí al pasar la imagen a blanco y negro."""
+def test_one_bit() -> None:
+    """Recuadros y flechas de tendencia siguen ahí al pasar a blanco y negro."""
     bw = (
         _open(render_png(_table()))
         .convert("RGB")
         .convert("1", dither=Image.Dither.NONE)
     )
 
-    def black(box: tuple[int, int, int, int]) -> float:
-        region = bw.crop(box)
-        return sum(1 for v in region.get_flattened_data() if not v) / (
-            region.width * region.height
-        )
+    def black(box: tuple[int, int, int, int]) -> int:
+        return sum(1 for v in bw.crop(box).get_flattened_data() if not v)
 
-    def runs(y: int, x0: int, x1: int) -> int:
-        row = [bw.getpixel((x, y)) for x in range(x0, x1)]
-        return sum(1 for a, b in itertools.pairwise(row) if a != b)
+    for i in range(24):
+        x0, y0, x1, _ = _box(i)
+        assert black((x0 + 20, y0, x1 - 20, y0 + 2)) == (x1 - x0 - 40) * 2
 
-    x0, y0, x1, y1 = _box(23)
-    plain = (x1 - 40, y0 + 70, x1 - 10, y1 - 5)
-    assert black(plain) == 0
-    x0, y0, x1, y1 = _box(20)
-    assert black((x1 - 40, y0 + 70, x1 - 10, y1 - 5)) > 0.2
-    # Borde punteado: tramos negros y blancos alternos.
-    x0, y0, x1, _ = _box(0)
-    assert runs(y0 + 1, x0 + 12, x1 - 12) > 15
-    x0, y0, x1, _ = _box(23)
-    assert runs(y0, x0 + 12, x1 - 12) == 0
+    # Zona a la derecha del precio: flecha solo en horas caras o baratas.
+    def trend(i: int) -> int:
+        _, y0, x1, _ = _box(i)
+        return black((x1 - 30, y0 + 40, x1 - 4, y0 + 72))
+
+    assert trend(0) > 40
+    assert trend(20) > 40
+    assert trend(23) == 0
 
 
 def test_render_variants() -> None:
-    _open(render_png(_table(templates=False)))
     # Día de 25 horas: una fila más.
     _open(render_png(_table(hours=25)))
     # Sin precios.
-    _open(render_png(Table(date(2026, 11, 27), False, "gl", "€/kWh", False, ())))
+    _open(render_png(Table(date(2026, 11, 27), False, "gl", ())))
 
 
 def test_fit() -> None:

@@ -29,7 +29,7 @@ def _prices(tomorrow: bool = False) -> dict:
     attrs = {f"price_{h:02d}h": 0.1 + h / 100 for h in range(24)}
     if tomorrow:
         attrs |= {f"price_next_day_{h:02d}h": 0.3 - h / 100 for h in range(24)}
-    return attrs | {"unit_of_measurement": "€/MWh"}
+    return attrs
 
 
 async def _png(client, entity_id: str) -> Image.Image:
@@ -145,13 +145,7 @@ async def test_build_table(hass) -> None:
     )
 
     table = build_table(hass, planner, False)
-    assert (table.day, table.today, table.lang, table.unit) == (
-        TODAY,
-        True,
-        "gl",
-        "€/MWh",
-    )
-    assert table.templates
+    assert (table.day, table.today, table.lang) == (TODAY, True, "gl")
     cells = {c.hour: c for c in table.cells}
     assert cells[9].past
     assert not cells[9].now
@@ -180,7 +174,7 @@ async def test_build_table(hass) -> None:
     )
     hass.states.async_remove("sensor.pvpc")
     empty = build_table(hass, planner, False)
-    assert (empty.cells, empty.unit) == ((), "€/kWh")
+    assert empty.cells == ()
 
 
 def test_price_levels() -> None:

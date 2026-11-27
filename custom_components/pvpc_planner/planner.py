@@ -112,10 +112,6 @@ class Planner:
             "rules": [rule.as_dict() for rule in RULES.values()],
         }
 
-    @property
-    def has_templates(self) -> bool:
-        return bool(self._templates)
-
     def template(self, template_id: str) -> dict[str, Any] | None:
         return self._templates.get(template_id)
 
