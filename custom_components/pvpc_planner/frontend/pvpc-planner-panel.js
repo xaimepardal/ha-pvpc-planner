@@ -407,6 +407,14 @@ function parsePrices(attrs, nextDay) {
   return out.sort((a, b) => a.hour - b.hour || a.dup - b.dup);
 }
 
+const TREND = { cheap: ["mdi:trending-down", "cheapest"], expensive: ["mdi:trending-up", "priciest"] };
+
+function trendHtml(t, level) {
+  if (!TREND[level]) return "";
+  const [icon, key] = TREND[level];
+  return `<ha-icon class="trend" icon="${icon}" title="${esc(t(key, { n: TOP }))}"></ha-icon>`;
+}
+
 function classify(prices) {
   const cls = new Map();
   [...prices]
@@ -469,9 +477,6 @@ const STYLE = `
   color: inherit; font: inherit; cursor: pointer; }
 .tabs button.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
 .tabs button[aria-disabled="true"] { opacity: .45; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--secondary-text-color); }
-.dot { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border-radius: 3px; margin-right: 6px; vertical-align: -2px; }
-.dot.cheap { border-width: 2px; }
 .msg:empty { display: none; }
 .msg { padding: 12px; border-radius: 8px; background: var(--card-background-color); margin-bottom: 12px; }
 /* Columnas divisoras de 24 para filas completas; celdas cuadradas. */
@@ -481,21 +486,18 @@ const STYLE = `
 .cell { aspect-ratio: 1; min-width: 0; overflow: hidden; box-sizing: border-box; display: grid; grid-template-rows: 1fr 1fr;
   container-type: inline-size; background: var(--card-background-color); border: 1px solid var(--divider-color); border-radius: 12px;
   padding: 7%; cursor: pointer; }
-/* Como la imagen para pantallas: caras rayadas, baratas con borde punteado. */
-.cheap, .expensive { --tint: color-mix(in srgb, var(--c) 15%, var(--card-background-color, #fff)); background: var(--tint); }
-.cheap { --c: var(--success-color, #43a047); border: 3px dotted var(--c); }
-.expensive { --c: var(--error-color, #db4437); border: 2px solid var(--c);
-  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 45%, transparent) 0 3px, transparent 3px 9px), var(--tint); }
-/* Fondo liso bajo el texto para leerlo sobre las rayas. */
-.cell.expensive :is(.h, .p, .devs, .badge) { width: fit-content; border-radius: 4px; background: var(--tint);
-  box-shadow: 0 0 0 1.5cqw var(--tint); }
+/* Como la imagen para pantallas: precio y flecha en verde (barata) o rojo (cara). */
+.cheap { --c: var(--success-color, #43a047); }
+.expensive { --c: var(--error-color, #db4437); }
+.cell:is(.cheap, .expensive) .p { color: var(--c); }
+.trend { --mdc-icon-size: 1em; margin-left: 2cqw; vertical-align: -.1em; }
 .cell.past { opacity: .4; cursor: default; }
 .cell.now { outline: 2px solid var(--primary-color); outline-offset: -1px; }
 .cell:focus-visible { outline: 2px solid var(--primary-color); }
 /* Medidas en cqw: escalan con la celda. Mitad superior hora y precio; inferior, dispositivos. */
-.h, .p { font-size: 19cqw; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.p { font-size: 25cqw; font-weight: 800; letter-spacing: -.02em; }
-.h small { font-size: .6em; font-weight: 500; }
+.h, .p { font-size: 21cqw; font-weight: 700; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.p { font-size: 20cqw; font-weight: 800; letter-spacing: -.02em; }
+.h small { font-size: .5em; font-weight: 500; }
 .devs { display: flex; align-items: center; align-self: end; gap: 4cqw; min-width: 0; color: var(--primary-color);
   --mdc-icon-size: 25cqw; }
 .devs ha-icon { flex: none; }
@@ -602,7 +604,7 @@ class PvpcPlannerPanel extends HTMLElement {
         <button class="pill theme"><ha-icon></ha-icon></button>
         <button class="settings-btn"><ha-icon icon="mdi:tune-variant"></ha-icon><span></span></button></div>
       <div class="content">
-        <div class="bar"><div class="tabs"></div><div class="legend"></div></div>
+        <div class="bar"><div class="tabs"></div></div>
         <div class="msg"></div>
         <div class="grid"></div>
       </div>
@@ -747,13 +749,6 @@ class PvpcPlannerPanel extends HTMLElement {
     this._$(".tabs").innerHTML = `
       <button data-day="today" class="${isToday ? "on" : ""}">${t("today")}</button>
       <button data-day="tomorrow" class="${isToday ? "" : "on"}" ${tomorrow.length ? "" : `aria-disabled="true" title="${t("tomorrow_pending")}"`}>${t("tomorrow")}</button>`;
-    const unit = stateObj.attributes.unit_of_measurement || "€/kWh";
-    this._$(".legend").innerHTML = `
-      <span title="${t("cheapest", { n: TOP })}"><i class="dot cheap"></i>$</span>
-      <span title="${t("priciest", { n: TOP })}"><i class="dot expensive"></i>$$$</span>
-      ${Object.keys(this._templates).length ? `<span><ha-icon icon="mdi:robot" style="--mdc-icon-size:16px"></ha-icon> ${t("tpl_auto")}</span>` : ""}
-      <span>${esc(unit)}</span>`;
-
     if (!prices.length) return fail(t("no_prices"));
     msg.textContent = "";
 
@@ -774,7 +769,7 @@ class PvpcPlannerPanel extends HTMLElement {
             data-hour="${p.hour}" role="button" tabindex="${past ? -1 : 0}">
           ${auto_.length ? `<ha-icon class="badge" icon="mdi:robot" title="${esc(t("tpl_auto"))}"></ha-icon>` : ""}
           <div><div class="h">${pad(p.hour)}:00${p.dup ? ` <small>${t("repeated")}</small>` : ""}</div>
-          <div class="p">${fmt.format(p.price)}</div></div>
+          <div class="p">${fmt.format(p.price)}${trendHtml(t, cls.get(p))}</div></div>
           ${this._devs(ents)}
         </div>`;
       })
