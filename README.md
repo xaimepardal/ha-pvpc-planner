@@ -3,9 +3,9 @@
 Panel para Home Assistant que muestra los precios PVPC por horas y enciende tus dispositivos en las horas que elijas.
 
 <p align="center">
-  <img src="docs/manana.png" width="200" alt="Precios de mañana con dispositivos programados">
-  <img src="docs/hora.png" width="200" alt="Elegir qué encender en una hora">
-  <img src="docs/hoy-oscuro.png" width="200" alt="Hoy en tema oscuro: horas pasadas atenuadas y hora actual marcada">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/manana.png" width="200" alt="Precios de mañana con dispositivos programados">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/hora.png" width="200" alt="Elegir qué encender en una hora">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/hoy-oscuro.png" width="200" alt="Hoy en tema oscuro: horas pasadas atenuadas y hora actual marcada">
 </p>
 
 <sub>Capturas de un entorno simulado con datos de ejemplo.</sub>
@@ -57,7 +57,7 @@ Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/`
 2. Pulsa una hora, marca los dispositivos o grupos y pulsa **Guardar**.
 3. Para quitarlos, vuelve a abrir la hora y desmárcalos, o pulsa **Quitar todos**.
 
-<p align="center"><img src="docs/manual.gif" width="300" alt="Programar el calentador hoy a las 14:00"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/manual.gif" width="300" alt="Programar el calentador hoy a las 14:00"></p>
 
 ### Con una plantilla
 
@@ -70,7 +70,7 @@ Copia `custom_components/pvpc_planner` en la carpeta `config/custom_components/`
 
 Las horas se calculan en cuanto se publican los precios y se suman a lo marcado a mano. Se distinguen por el icono del robot.
 
-<p align="center"><img src="docs/plantilla.gif" width="300" alt="Plantilla: el calentador en las 3 horas más baratas"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/plantilla.gif" width="300" alt="Plantilla: el calentador en las 3 horas más baratas"></p>
 
 ### Ajustes
 
@@ -79,14 +79,14 @@ Las horas se calculan en cuanto se publican los precios y se suman a lo marcado 
 - **Plantillas**: ver arriba.
 
 <p align="center">
-  <img src="docs/ajustes-dispositivos.png" width="200" alt="Ajustes: dispositivos visibles, con nombre e icono propios">
-  <img src="docs/ajustes-grupo.png" width="200" alt="Ajustes: editar un grupo">
-  <img src="docs/ajustes-plantilla.png" width="200" alt="Ajustes: editar una plantilla">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/ajustes-dispositivos.png" width="200" alt="Ajustes: dispositivos visibles, con nombre e icono propios">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/ajustes-grupo.png" width="200" alt="Ajustes: editar un grupo">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/ajustes-plantilla.png" width="200" alt="Ajustes: editar una plantilla">
 </p>
 
 El botón junto a **Ajustes** alterna entre tema claro y oscuro; por defecto se usa el de Home Assistant y la elección se guarda en el navegador. En pantallas anchas la rejilla muestra 6 horas por fila:
 
-<p align="center"><img src="docs/escritorio.png" width="640" alt="Vista de escritorio"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/escritorio.png" width="640" alt="Vista de escritorio"></p>
 
 Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolean` y `humidifier`. Las horas que ya han pasado no se pueden editar, y cada usuario solo puede programar las entidades que tiene permiso para controlar.
 
@@ -105,8 +105,8 @@ Se pueden programar los tipos de entidad `switch`, `light`, `fan`, `input_boolea
 Las entidades `image.pvpc_planner_today` y `image.pvpc_planner_tomorrow` dan la tabla del día como PNG, pensada para pantallas e-ink o ESPHome. El precio va en verde con una flecha hacia abajo en las horas baratas y en rojo con una flecha hacia arriba en las caras, así que se lee igual en blanco y negro. Se regenera solo cuando cambian los precios, la programación o la hora en curso.
 
 <p align="center">
-  <img src="docs/pantalla.png" width="400" alt="Imagen de 800x480 con la tabla de hoy">
-  <img src="docs/pantalla-1bit.png" width="400" alt="La misma imagen pasada a 1 bit">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/pantalla.png" width="400" alt="Imagen de 800x480 con la tabla de hoy">
+  <img src="https://raw.githubusercontent.com/xaimepardal/ha-pvpc-planner/main/docs/pantalla-1bit.png" width="400" alt="La misma imagen pasada a 1 bit">
 </p>
 
 El tamaño se cambia en **Ajustes → Dispositivos y servicios → PVPC Planner → Configurar** (de 100 a 2000 px; por defecto 800x480). La rejilla se adapta a horizontal o vertical.
