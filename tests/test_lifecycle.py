@@ -1,12 +1,14 @@
 """Reinicio de HA y descarga/recarga de la entrada."""
 
 from datetime import date
+import hashlib
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState
 import pytest
 
+from custom_components.pvpc_planner import _PANEL_JS
 from custom_components.pvpc_planner.const import DOMAIN, PANEL_URL
 
 from .common import (
@@ -81,3 +83,10 @@ async def test_unload_and_reload(hass, hass_ws_client, freezer) -> None:
     await hass.async_block_till_done()
     assert PANEL_URL in hass.data["frontend_panels"]
     assert not is_on(hass, TERMO)
+
+
+async def test_panel_url_busts_cache_by_content(hass) -> None:
+    await async_setup_integration(hass)
+    panel = hass.data["frontend_panels"][PANEL_URL]
+    digest = hashlib.sha256(_PANEL_JS.read_bytes()).hexdigest()[:12]
+    assert panel.config["_panel_custom"]["module_url"].endswith(f"?v={digest}")
