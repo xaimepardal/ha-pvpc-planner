@@ -1,4 +1,4 @@
-"""Config flow (sensor PVPC) y opciones (publicación MQTT de las imágenes)."""
+"""Config flow (sensor PVPC) y opciones (tamaño y publicación MQTT de las imágenes)."""
 
 from __future__ import annotations
 
@@ -31,25 +31,43 @@ from .const import (
     CONF_ACTIVE_FROM,
     CONF_ACTIVE_TO,
     CONF_CA_CERT,
+    CONF_HEIGHT,
     CONF_INTERVAL,
     CONF_PRICE_ENTITY,
     CONF_TLS,
     CONF_TOPIC_TODAY,
     CONF_TOPIC_TOMORROW,
+    CONF_WIDTH,
+    DEFAULT_HEIGHT,
     DEFAULT_INTERVAL,
     DEFAULT_MQTT_PORT,
     DEFAULT_TOPIC_TODAY,
     DEFAULT_TOPIC_TOMORROW,
+    DEFAULT_WIDTH,
     DOMAIN,
+    MAX_SIZE,
+    MIN_SIZE,
     PVPC_DOMAIN,
 )
 from .publisher import check_connection
 
 _TOPICS = (CONF_TOPIC_TODAY, CONF_TOPIC_TOMORROW)
 _TEXT_OPTIONS = (CONF_HOST, CONF_CA_CERT, CONF_USERNAME, *_TOPICS)
+_INT_OPTIONS = (CONF_WIDTH, CONF_HEIGHT, CONF_PORT, CONF_INTERVAL)
+
+_PIXELS = NumberSelector(
+    NumberSelectorConfig(
+        min=MIN_SIZE,
+        max=MAX_SIZE,
+        unit_of_measurement="px",
+        mode=NumberSelectorMode.BOX,
+    )
+)
 
 OPTIONS_SCHEMA = vol.Schema(
     {
+        vol.Required(CONF_WIDTH, default=DEFAULT_WIDTH): _PIXELS,
+        vol.Required(CONF_HEIGHT, default=DEFAULT_HEIGHT): _PIXELS,
         vol.Optional(CONF_HOST): TextSelector(),
         vol.Required(CONF_PORT, default=DEFAULT_MQTT_PORT): NumberSelector(
             NumberSelectorConfig(min=1, max=65535, mode=NumberSelectorMode.BOX)
@@ -128,8 +146,7 @@ def _options(user_input: dict[str, Any], current: dict[str, Any]) -> dict[str, A
     options |= {k: v for k in _TEXT_OPTIONS if (v := user_input.get(k, "").strip())}
     # Topic vacío = no se publica esa imagen.
     options |= {k: options.get(k, "") for k in _TOPICS}
-    options[CONF_PORT] = int(options[CONF_PORT])
-    options[CONF_INTERVAL] = int(options[CONF_INTERVAL])
+    options |= {k: int(options[k]) for k in _INT_OPTIONS}
     if not options.get(CONF_USERNAME):
         options.pop(CONF_PASSWORD, None)
     elif not options.get(CONF_PASSWORD) and current.get(CONF_PASSWORD):

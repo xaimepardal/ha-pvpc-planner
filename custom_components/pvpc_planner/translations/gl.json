@@ -27,9 +27,11 @@
   "options": {
     "step": {
       "init": {
-        "title": "Publicar por MQTT",
-        "description": "Envía as imaxes de hoxe e de mañá a un broker MQTT para pantallas e-paper (reTerminal E1001 con epaper-home). Só se publican cando cambian. Deixa o servidor baleiro para non publicar.",
+        "title": "Imaxes e MQTT",
+        "description": "Tamaño das imaxes de hoxe e de mañá. Opcionalmente, envíanse a un broker MQTT en branco e negro para calquera pantalla ePaper, só cando cambian. Deixa o servidor baleiro para non publicar.",
         "data": {
+          "width": "Ancho",
+          "height": "Alto",
           "host": "Servidor",
           "port": "Porto",
           "tls": "TLS",
@@ -43,6 +45,7 @@
           "active_to": "Activo ata"
         },
         "data_description": {
+          "width": "Tamaño da túa pantalla, de 100 a 2000 px. A táboa reorganízase en horizontal ou vertical.",
           "ca_cert": "Baleiro: as CA do sistema.",
           "password": "Baleiro: mantense o gardado.",
           "topic_today": "Baleiro: non se publica.",

@@ -27,9 +27,11 @@
   "options": {
     "step": {
       "init": {
-        "title": "Publish over MQTT",
-        "description": "Sends today's and tomorrow's images to an MQTT broker for e-paper displays (reTerminal E1001 with epaper-home). They are only published when they change. Leave the server empty to disable.",
+        "title": "Images and MQTT",
+        "description": "Size of today's and tomorrow's images. Optionally, they are sent to an MQTT broker in black and white for any ePaper display, only when they change. Leave the server empty to disable.",
         "data": {
+          "width": "Width",
+          "height": "Height",
           "host": "Server",
           "port": "Port",
           "tls": "TLS",
@@ -43,6 +45,7 @@
           "active_to": "Active until"
         },
         "data_description": {
+          "width": "Your display size, from 100 to 2000 px. The table adapts to landscape or portrait.",
           "ca_cert": "Empty: system CAs.",
           "password": "Empty: keep the stored one.",
           "topic_today": "Empty: not published.",

@@ -6,6 +6,7 @@ imagen se genera al pedirla y se guarda hasta que cambia lo que muestra.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
 
@@ -23,6 +24,10 @@ from homeassistant.helpers.event import (
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_HEIGHT,
+    CONF_WIDTH,
+    DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
     DOMAIN,
     DOMAIN_ICONS,
     GROUP_ICON,
@@ -71,7 +76,19 @@ def _device(hass: HomeAssistant, planner: Planner, target: str) -> Device:
 
 
 @callback
-def build_table(hass: HomeAssistant, planner: Planner, tomorrow: bool) -> Table:
+def image_size(options: Mapping[str, Any]) -> tuple[int, int]:
+    return (
+        int(options.get(CONF_WIDTH, DEFAULT_WIDTH)),
+        int(options.get(CONF_HEIGHT, DEFAULT_HEIGHT)),
+    )
+
+
+def build_table(
+    hass: HomeAssistant,
+    planner: Planner,
+    tomorrow: bool,
+    size: tuple[int, int] = (DEFAULT_WIDTH, DEFAULT_HEIGHT),
+) -> Table:
     now = dt_util.now()
     day = now.date() + timedelta(days=tomorrow)
     prices = planner.day_prices().get(day, [])
@@ -97,6 +114,8 @@ def build_table(hass: HomeAssistant, planner: Planner, tomorrow: bool) -> Table:
         today=not tomorrow,
         lang=hass.config.language,
         cells=tuple(cells),
+        width=size[0],
+        height=size[1],
     )
 
 
@@ -107,6 +126,7 @@ class TableImage(ImageEntity):
     def __init__(self, entry: ConfigEntry, planner: Planner, tomorrow: bool) -> None:
         super().__init__(planner.hass)
         key = "tomorrow" if tomorrow else "today"
+        self._entry = entry
         self._planner = planner
         self._tomorrow = tomorrow
         self._table: Table | None = None
@@ -130,12 +150,18 @@ class TableImage(ImageEntity):
             ),
             # Hora en curso, horas pasadas y cambio de día.
             async_track_time_change(self.hass, self._refresh, minute=0, second=0),
+            # Cambio de tamaño en las opciones.
+            self._entry.add_update_listener(self._async_options_updated),
         ):
             self.async_on_remove(unsub)
 
+    async def _async_options_updated(self, *_: Any) -> None:
+        self._refresh()
+
     @callback
     def _refresh(self, *_: Any, write: bool = True) -> None:
-        table = build_table(self.hass, self._planner, self._tomorrow)
+        size = image_size(self._entry.options)
+        table = build_table(self.hass, self._planner, self._tomorrow, size)
         if table == self._table:
             return
         self._table, self._png = table, None

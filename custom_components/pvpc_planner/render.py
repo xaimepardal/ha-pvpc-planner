@@ -1,8 +1,9 @@
-"""Tabla del día como PNG de 800x480 para pantallas (e-ink, ESPHome).
+"""Tabla del día como PNG para pantallas (e-ink, ESPHome), del tamaño que se pida.
 
-Fondo blanco, celdas con recuadro negro y una flecha de tendencia junto al
-precio en las horas caras y baratas: se lee igual pasada a 1 bit (umbral 128).
-Bloqueante (Pillow y disco): llamar desde el executor.
+Fondo blanco, celdas con recuadro negro y el precio en verde o rojo con una
+flecha de tendencia en las horas baratas y caras: se lee igual pasada a 1 bit
+(umbral 128). La rejilla elige las columnas según la orientación y todo escala
+con el tamaño de la celda. Bloqueante (Pillow y disco): llamar desde el executor.
 """
 
 from __future__ import annotations
@@ -18,8 +19,9 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from .mdi import icon_mask
 
-WIDTH, HEIGHT = 800, 480
-COLUMNS = 6
+# Medidas de referencia: las de 800x480, una celda de 126x102 (6x4).
+REF_AREA = 800 * 480
+REF_CELL = (126, 102)
 HEADER = 40
 PAD = 6
 MAX_ICONS = 3
@@ -35,9 +37,6 @@ LEVELS = {
     "cheap": ("mdi:trending-down", (46, 125, 50)),
     "expensive": ("mdi:trending-up", (211, 47, 47)),
 }
-RADIUS = 6
-BORDER = 2
-NOW_BORDER = 5
 PALETTE_COLORS = 32
 
 TEXTS = {
@@ -94,10 +93,54 @@ class Table:
     today: bool
     lang: str
     cells: tuple[Cell, ...]
+    width: int
+    height: int
 
 
 def texts(lang: str) -> dict[str, str]:
     return TEXTS.get(lang) or TEXTS.get(lang.split("-")[0]) or TEXTS["en"]
+
+
+type Box = tuple[int, int, int, int]
+type Color = tuple[int, int, int]
+
+
+def layout(width: int, height: int, count: int) -> tuple[int, list[Box]]:
+    """Alto de la cabecera y recuadro de cada celda.
+
+    Columnas: las que dejan la celda más parecida a la de referencia, sin
+    columnas de más (24 horas: 6x4 o 4x6, pero no 7x4).
+    """
+    scale = math.sqrt(width * height / REF_AREA)
+    header = round(HEADER * scale)
+    pad = max(2, round(PAD * scale))
+    if not count:
+        return header, []
+    target = REF_CELL[0] / REF_CELL[1]
+
+    def cell(cols: int) -> tuple[float, float]:
+        rows = math.ceil(count / cols)
+        return (
+            (width - pad * (cols + 1)) / cols,
+            (height - header - pad * (rows + 1)) / rows,
+        )
+
+    cols = min(
+        (
+            c
+            for c in range(1, count + 1)
+            if math.ceil(count / math.ceil(count / c)) == c
+        ),
+        key=lambda c: abs(math.log(max(cell(c)[0], 1) / max(cell(c)[1], 1) / target)),
+    )
+    w, h = cell(cols)
+    boxes = []
+    for i in range(count):
+        row, col = divmod(i, cols)
+        x = pad + col * (w + pad)
+        y = header + pad + row * (h + pad)
+        boxes.append((round(x), round(y), round(x + w), round(y + h)))
+    return header, boxes
 
 
 def render(table: Table) -> Image.Image:
@@ -134,33 +177,32 @@ def _fit(text: str, font: ImageFont.FreeTypeFont, width: float) -> str:
     return text.rstrip() + "…"
 
 
-type Box = tuple[int, int, int, int]
-type Color = tuple[int, int, int]
-
-
 class _Painter:
     def __init__(self, table: Table) -> None:
         self.table = table
         self.t = texts(table.lang)
-        self.img = Image.new("RGB", (WIDTH, HEIGHT), PAPER)
+        self.size = (table.width, table.height)
+        self.img = Image.new("RGB", self.size, PAPER)
         self.draw = ImageDraw.Draw(self.img)
+        # Escala de la celda respecto a la de referencia.
+        self.k = 1.0
+
+    def px(self, value: float) -> int:
+        return max(1, round(value * self.k))
 
     def paint(self) -> Image.Image:
-        title = _font(26, True)
-        self.draw.text((WIDTH / 2, HEADER / 2), self.title(), INK, title, "mm")
-        cells = self.table.cells
-        if not cells:
-            center = (WIDTH / 2, (HEIGHT + HEADER) / 2)
-            self.draw.text(center, self.t["no_prices"], INK, _font(24), "mm")
+        width, height = self.size
+        header, boxes = layout(width, height, len(self.table.cells))
+        title = _font(max(6, round(header * 0.65)), True)
+        self.draw.text((width / 2, header / 2), self.title(), INK, title, "mm")
+        if not boxes:
+            center = (width / 2, (height + header) / 2)
+            self.draw.text(center, self.t["no_prices"], INK, title, "mm")
             return self.img
-        rows = math.ceil(len(cells) / COLUMNS)
-        w = (WIDTH - PAD * (COLUMNS + 1)) / COLUMNS
-        h = (HEIGHT - HEADER - PAD * (rows + 1)) / rows
-        for i, cell in enumerate(cells):
-            row, col = divmod(i, COLUMNS)
-            x = PAD + col * (w + PAD)
-            y = HEADER + PAD + row * (h + PAD)
-            self.cell(cell, (round(x), round(y), round(x + w), round(y + h)))
+        x0, y0, x1, y1 = boxes[0]
+        self.k = min((x1 - x0) / REF_CELL[0], (y1 - y0) / REF_CELL[1])
+        for cell, box in zip(self.table.cells, boxes, strict=True):
+            self.cell(cell, box)
         return self.img
 
     def title(self) -> str:
@@ -172,24 +214,26 @@ class _Painter:
         )
 
     def cell(self, cell: Cell, box: Box) -> None:
-        width = NOW_BORDER if cell.now else BORDER
-        self.draw.rounded_rectangle(box, RADIUS, PAPER, INK, width)
+        px = self.px
+        border = px(5) if cell.now else px(2)
+        self.draw.rounded_rectangle(box, px(6), PAPER, INK, border)
         ink = PAST if cell.past else INK
         x0, y0, x1, y1 = box
-        x = x0 + 10
-        self.draw.text((x, y0 + 4), f"{cell.hour:02d}:00", ink, _font(38, True))
+        x = x0 + px(10)
+        self.draw.text((x, y0 + px(4)), f"{cell.hour:02d}:00", ink, _font(px(38), True))
         price = f"{cell.price:.4f}".replace(".", self.t["decimal"])
-        font = _font(24, True)
+        font = _font(px(24), True)
         icon, color = LEVELS.get(cell.level, (None, ink))
-        self.draw.text((x, y0 + 44), price, color, font)
+        self.draw.text((x, y0 + px(44)), price, color, font)
         if icon:
-            xy = (x + font.getlength(price) + 3, y0 + 41)
-            self.icon(icon, "", xy, 30, color, bold=True)
+            xy = (x + font.getlength(price) + px(3), y0 + px(41))
+            self.icon(icon, "", xy, px(30), color, bold=True)
         if cell.auto:
-            self.icon(ROBOT, "", (x1 - 30, y1 - 29), 22, ink)
+            self.icon(ROBOT, "", (x1 - px(30), y1 - px(29)), px(22), ink)
         if cell.devices:
             fill = PAST if cell.past else PRIMARY
-            self.devices(cell.devices, box, fill, ink, reserve=32 if cell.auto else 0)
+            reserve = px(32) if cell.auto else 0
+            self.devices(cell.devices, box, fill, ink, reserve)
 
     def icon(
         self, icon: str, name: str, xy, size: int, fill: Color, bold: bool = False
@@ -207,27 +251,29 @@ class _Painter:
         circle = (x + 1, y + 1, x + size - 2, y + size - 2)
         self.draw.ellipse(circle, None, fill, 2)
         initial = (name[:1] or "?").upper()
-        font = _font(round(size * 0.55), True)
+        font = _font(max(1, round(size * 0.55)), True)
         self.draw.text((x + size / 2, y + size / 2), initial, fill, font, "mm")
 
     def devices(
         self, items: tuple[Device, ...], box: Box, fill: Color, ink: Color, reserve: int
     ) -> None:
         """Uno: icono y nombre. Varios: iconos, y desde MAX_ICONS el resto como "+N"."""
+        px = self.px
         x0, _, x1, y1 = box
-        size = 22
-        x, y = x0 + 10, y1 - size - 7
+        size = px(22)
+        x, y = x0 + px(10), y1 - size - px(7)
         if len(items) == 1:
             dev = items[0]
             self.icon(dev.icon, dev.name, (x, y), size, fill)
-            font = _font(15)
+            font = _font(px(15))
             # `reserve`: hueco para el robot de la esquina.
-            name = _fit(dev.name, font, x1 - x - size - 14 - reserve)
-            self.draw.text((x + size + 5, y + size / 2), name, ink, font, "lm")
+            name = _fit(dev.name, font, x1 - x - size - px(14) - reserve)
+            self.draw.text((x + size + px(5), y + size / 2), name, ink, font, "lm")
             return
         shown = items[: MAX_ICONS - 1] if len(items) > MAX_ICONS else items
         for dev in shown:
             self.icon(dev.icon, dev.name, (x, y), size, fill)
-            x += size + 4
+            x += size + px(4)
         if rest := len(items) - len(shown):
-            self.draw.text((x, y + size / 2), f"+{rest}", ink, _font(17, True), "lm")
+            font = _font(px(17), True)
+            self.draw.text((x, y + size / 2), f"+{rest}", ink, font, "lm")

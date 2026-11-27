@@ -22,10 +22,12 @@ from custom_components.pvpc_planner.const import (
     CONF_ACTIVE_FROM,
     CONF_ACTIVE_TO,
     CONF_CA_CERT,
+    CONF_HEIGHT,
     CONF_INTERVAL,
     CONF_TLS,
     CONF_TOPIC_TODAY,
     CONF_TOPIC_TOMORROW,
+    CONF_WIDTH,
     DOMAIN,
 )
 from custom_components.pvpc_planner.render import Cell, Table, render
@@ -33,7 +35,7 @@ from custom_components.pvpc_planner.render import Cell, Table, render
 from .common import TERMO, async_setup_integration
 from .mqtt_broker import Broker
 
-TODAY, TOMORROW = "reterminal/imagen/1", "reterminal/imagen/2"
+TODAY, TOMORROW = "pvpc_planner/image/today", "pvpc_planner/image/tomorrow"
 
 
 def _prices(base: float = 0.1, tomorrow: bool = True) -> dict:
@@ -109,6 +111,8 @@ def test_payload_matches_legacy(cells: int) -> None:
             Cell(h, 0.1 + h / 100, None, h < 10, h == 10, False, ())
             for h in range(cells)
         ),
+        width=800,
+        height=480,
     )
     img = render(table)
     data = pub.payload(img)
@@ -366,6 +370,8 @@ async def test_options_flow(hass, broker) -> None:
         CONF_PASSWORD: "secreto",
         CONF_TOPIC_TODAY: TODAY,
         CONF_INTERVAL: 30.0,
+        CONF_WIDTH: 480.0,
+        CONF_HEIGHT: 800.0,
     }
 
     result = await hass.config_entries.options.async_configure(
@@ -393,9 +399,12 @@ async def test_options_flow(hass, broker) -> None:
         CONF_TOPIC_TODAY: TODAY,
         CONF_TOPIC_TOMORROW: "",
         CONF_INTERVAL: 30,
+        CONF_WIDTH: 480,
+        CONF_HEIGHT: 800,
     }
     # Cambiar opciones reinicia solo la publicación.
     await _until(lambda: [m.topic for m in broker.messages] == [TODAY])
+    assert len(zlib.decompress(broker.messages[0].payload)) == 480 * 800 // 8
 
     # Contraseña vacía: se mantiene la guardada. Sin usuario: se borra.
     result = await hass.config_entries.options.async_init(entry.entry_id)
